@@ -1,0 +1,431 @@
+#!/usr/bin/env bash
+# ============================================================================
+# tools.db — Tool Registry for PaginasAudit Cyber Audit Installer
+# ----------------------------------------------------------------------------
+# Format: arrays indexed by tool name
+# To add a new tool: add entries to TOOL_PHASE, TOOL_PKG, TOOL_DESC, TOOL_BIN
+# ============================================================================
+
+# --- Tool registry (master list of ALL tools) ---
+# Format: TOOL_<PROPERTY>["toolname"]="value"
+
+# Phase assignment: "Assessment" | "Malware Analysis" | "Brand Protection" | "Incident Response"
+declare -A TOOL_PHASE=(
+    # Phase 1: Assessment — Escaneo activo, DAST, superficie de red
+    [nmap]="Assessment"
+    [nikto]="Assessment"
+    [sqlmap]="Assessment"
+    [whatweb]="Assessment"
+    [wpscan]="Assessment"
+    [dirb]="Assessment"
+    [gobuster]="Assessment"
+    [zaproxy]="Assessment"
+    [burpsuite]="Assessment"
+    [dnsrecon]="Assessment"
+    [dnsenum]="Assessment"
+    [whois]="Assessment"
+    [sslscan]="Assessment"
+    [testssl]="Assessment"
+    [nuclei]="Assessment"
+    [httpx]="Assessment"
+    [subfinder]="Assessment"
+    [amass]="Assessment"
+    [hydra]="Assessment"
+    [john]="Assessment"
+    [hashcat]="Assessment"
+    [curl]="Assessment"
+    [wget]="Assessment"
+
+    # Phase 2: Malware Analysis — Dependencias, webshells, integridad
+    [lynis]="Malware Analysis"
+    [chkrootkit]="Malware Analysis"
+    [rkhunter]="Malware Analysis"
+    [clamav]="Malware Analysis"
+    [aide]="Malware Analysis"
+    [snyk]="Malware Analysis"
+    [npm]="Malware Analysis"
+    [python3]="Malware Analysis"
+    [binwalk]="Malware Analysis"
+    [strings]="Malware Analysis"
+    [exiftool]="Malware Analysis"
+    [yara]="Malware Analysis"
+    [python-docx]="Malware Analysis"
+    [peepdf]="Malware Analysis"
+    [radare2]="Malware Analysis"
+    [jq]="Malware Analysis"
+
+    # Phase 3: Brand Protection — Typosquatting, fugas, reputación
+    [dnstwist]="Brand Protection"
+    [theharvester]="Brand Protection"
+    [sublist3r]="Brand Protection"
+    [holehe]="Brand Protection"
+    [emailfinder]="Brand Protection"
+    [ghunt]="Brand Protection"
+    [social-analyzer]="Brand Protection"
+    [whatsmyname]="Brand Protection"
+    [haveibeenpwned]="Brand Protection"
+    [spiderfoot]="Brand Protection"
+    [yq]="Brand Protection"
+
+    # Phase 4: Incident Response — Logs, tráfico, backups, forense
+    [wireshark]="Incident Response"
+    [tcpdump]="Incident Response"
+    [tshark]="Incident Response"
+    [volatility]="Incident Response"
+    [bulk_extractor]="Incident Response"
+    [guymager]="Incident Response"
+    [ddrescue]="Incident Response"
+    [sleuthkit]="Incident Response"
+    [autopsy]="Incident Response"
+    [foremost]="Incident Response"
+    [scalpel]="Incident Response"
+    [magicrescue]="Incident Response"
+    [testdisk]="Incident Response"
+    [photorec]="Incident Response"
+    [rsync]="Incident Response"
+    [tripwire]="Incident Response"
+    [duplicity]="Incident Response"
+    [borg]="Incident Response"
+    [dcfldd]="Incident Response"
+)
+
+# Package names (what to install via apt/pip/npm/snap/cargo)
+declare -A TOOL_PKG=(
+    [nmap]="nmap"
+    [nikto]="nikto"
+    [sqlmap]="sqlmap"
+    [whatweb]="whatweb"
+    [wpscan]="wpscan"
+    [dirb]="dirb"
+    [gobuster]="gobuster"
+    [zaproxy]="zaproxy"
+    [burpsuite]="burpsuite"
+    [dnsrecon]="dnsrecon"
+    [dnsenum]="dnsenum"
+    [whois]="whois"
+    [sslscan]="sslscan"
+    [testssl]="testssl.sh"
+    [nuclei]="nuclei"
+    [httpx]="httpx"
+    [subfinder]="subfinder"
+    [amass]="amass"
+    [hydra]="hydra"
+    [john]="john"
+    [hashcat]="hashcat"
+    [curl]="curl"
+    [wget]="wget"
+    [lynis]="lynis"
+    [chkrootkit]="chkrootkit"
+    [rkhunter]="rkhunter"
+    [clamav]="clamav"
+    [aide]="aide"
+    [snyk]="snyk"
+    [npm]="npm"
+    [python3]="python3"
+    [binwalk]="binwalk"
+    [strings]="binutils"
+    [exiftool]="exiftool"
+    [yara]="yara"
+    [python-docx]="python-docx"
+    [peepdf]="peepdf"
+    [radare2]="radare2"
+    [jq]="jq"
+    [dnstwist]="dnstwist"
+    [theharvester]="theharvester"
+    [sublist3r]="sublist3r"
+    [holehe]="holehe"
+    [emailfinder]="emailfinder"
+    [ghunt]="ghunt"
+    [social-analyzer]="social-analyzer"
+    [whatsmyname]="whatsmyname"
+    [haveibeenpwned]="haveibeenpwned"
+    [spiderfoot]="spiderfoot"
+    [yq]="yq"
+    [wireshark]="wireshark"
+    [tcpdump]="tcpdump"
+    [tshark]="tshark"
+    [volatility]="volatility"
+    [bulk_extractor]="bulk_extractor"
+    [guymager]="guymager"
+    [ddrescue]="ddrescue"
+    [sleuthkit]="sleuthkit"
+    [autopsy]="autopsy"
+    [foremost]="foremost"
+    [scalpel]="scalpel"
+    [magicrescue]="magicrescue"
+    [testdisk]="testdisk"
+    [photorec]="photorec"
+    [rsync]="rsync"
+    [tripwire]="tripwire"
+    [duplicity]="duplicity"
+    [borg]="borgbackup"
+    [dcfldd]="dcfldd"
+)
+
+# Human-readable descriptions
+declare -A TOOL_DESC=(
+    [nmap]="Escáner de puertos y detección de servicios"
+    [nikto]="Escáner de vulnerabilidades web (servidor)"
+    [sqlmap]="Detección y explotación de SQL Injection"
+    [whatweb]="Identificación de tecnologías web"
+    [wpscan]="Escáner de vulnerabilidades WordPress"
+    [dirb]="Fuzzing de directorios web"
+    [gobuster]="Fuerza bruta de directorios/subdominios"
+    [zaproxy]="Proxy de interceptación OWASP ZAP (DAST)"
+    [burpsuite]="Suite de pruebas de penetración web (Community)"
+    [dnsrecon]="Enumeración y reconocimiento DNS"
+    [dnsenum]="Enumeración de registros DNS"
+    [whois]="Consultas de registro de dominios"
+    [sslscan]="Evaluación de configuración SSL/TLS"
+    [testssl]="Suite de testing de SSL/TLS"
+    [nuclei]="Escáner de vulnerabilidades basado en templates YAML"
+    [httpx]="Sondeo HTTP proactivo"
+    [subfinder]="Descubrimiento de subdominios pasivo"
+    [amass]="Mapeo de superficie de ataque (OWASP)"
+    [hydra]="Fuerza bruta de autenticación"
+    [john]="John the Ripper — crackeo de hashes"
+    [hashcat]="Crackeo de hashes acelerado por GPU"
+    [curl]="Transferencia de datos desde/hacia servidores"
+    [wget]="Descarga recursiva de contenido web"
+
+    [lynis]="Auditoría de seguridad del sistema UNIX"
+    [chkrootkit]="Detección local de rootkits"
+    [rkhunter]="Búsqueda de rootkits y malware"
+    [clamav]="Antivirus open-source para servidores"
+    [aide]="Monitor de integridad de archivos"
+    [snyk]="Análisis de vulnerabilidades en dependencias"
+    [npm]="Gestor de paquetes Node.js (auditoría)"
+    [python3]="Python 3 (ejecución de scripts de seguridad)"
+    [binwalk]="Análisis de firmware y binarios"
+    [strings]="Extracción de cadenas de binarios"
+    [exiftool]="Lectura/escritura de metadatos EXIF"
+    [yara]="Clasificación y detección de malware por patrones"
+    [python-docx]="Generación de reportes DOCX profesionales"
+    [peepdf]="Análisis de archivos PDF maliciosos"
+    [radare2]="Framework de reverse engineering"
+    [jq]="Procesador JSON para línea de comandos"
+
+    [dnstwist]="Detección de typosquatting en dominios"
+    [theharvester]="Recolección de emails, subdominios, IPs"
+    [sublist3r]="Enumeración rápida de subdominios"
+    [holehe]="Verificación de cuentas por correo electrónico"
+    [emailfinder]="Búsqueda de emails por dominio"
+    [ghunt]="OSINT sobre cuentas de Google"
+    [social-analyzer]="Análisis de perfiles en redes sociales"
+    [whatsmyname]="Enumeración de nombres de usuario"
+    [haveibeenpwned]="Consulta de fugas de credenciales (HIBP)"
+    [spiderfoot]="Automatización de OSINT y footprinting"
+    [yq]="Procesador YAML para línea de comandos"
+
+    [wireshark]="Analizador de protocolos de red (GUI)"
+    [tcpdump]="Captura de paquetes en línea de comandos"
+    [tshark]="Wireshark en modo CLI"
+    [volatility]="Análisis forense de memoria RAM"
+    [bulk_extractor]="Extracción forense de datos de discos"
+    [guymager]="Adquisición forense de imágenes de disco"
+    [ddrescue]="Recuperación de datos de discos dañados"
+    [sleuthkit]="Suite de análisis forense de sistema de archivos"
+    [autopsy]="Interfaz gráfica de Sleuth Kit"
+    [foremost]="Recuperación de archivos por firmas (carving)"
+    [scalpel]="File carving basado en base de datos de firmas"
+    [magicrescue]="Recuperación de archivos por magic bytes"
+    [testdisk]="Recuperación de particiones perdidas"
+    [photorec]="Recuperación de fotos y archivos borrados"
+    [rsync]="Sincronización y backup de archivos"
+    [tripwire]="Monitor de integridad de archivos del sistema"
+    [duplicity]="Backups cifrados incrementales"
+    [borg]="Backup deduplicante comprimido y cifrado"
+    [dcfldd]="dd forense con hashing en tiempo real"
+)
+
+# Alternative binary name (if different from tool key)
+declare -A TOOL_BIN=(
+    [testssl]="testssl.sh"
+    [whatweb]="whatweb"
+    [social-analyzer]="social-analyzer"
+    [haveibeenpwned]="hibp"
+    [peepdf]="peepdf"
+    [exiftool]="exiftool"
+    [python-docx]="python3"
+    [snyk]="snyk"
+    [yq]="yq"
+)
+
+# Installation method: apt|pip|npm|snap|cargo|go|repo (default: apt)
+declare -A TOOL_METHOD=(
+    # Phase 1
+    [nmap]="apt"
+    [nikto]="apt"
+    [sqlmap]="apt"
+    [whatweb]="apt"
+    [wpscan]="gem"
+    [dirb]="apt"
+    [gobuster]="apt"
+    [zaproxy]="apt"
+    [burpsuite]="repo"
+    [dnsrecon]="apt"
+    [dnsenum]="apt"
+    [whois]="apt"
+    [sslscan]="apt"
+    [testssl]="apt"
+    [nuclei]="go"
+    [httpx]="go"
+    [subfinder]="go"
+    [amass]="go"
+    [hydra]="apt"
+    [john]="apt"
+    [hashcat]="apt"
+    [curl]="apt"
+    [wget]="apt"
+
+    # Phase 2
+    [lynis]="apt"
+    [chkrootkit]="apt"
+    [rkhunter]="apt"
+    [clamav]="apt"
+    [aide]="apt"
+    [snyk]="npm"
+    [npm]="apt"
+    [python3]="apt"
+    [binwalk]="apt"
+    [strings]="apt"
+    [exiftool]="apt"
+    [yara]="apt"
+    [python-docx]="pip"
+    [peepdf]="pip"
+    [radare2]="apt"
+    [jq]="apt"
+
+    # Phase 3
+    [dnstwist]="apt"
+    [theharvester]="apt"
+    [sublist3r]="pip"
+    [holehe]="pip"
+    [emailfinder]="pip"
+    [ghunt]="pip"
+    [social-analyzer]="npm"
+    [whatsmyname]="pip"
+    [haveibeenpwned]="pip"
+    [spiderfoot]="pip"
+    [yq]="snap"
+
+    # Phase 4
+    [wireshark]="apt"
+    [tcpdump]="apt"
+    [tshark]="apt"
+    [volatility]="pip"
+    [bulk_extractor]="apt"
+    [guymager]="apt"
+    [ddrescue]="apt"
+    [sleuthkit]="apt"
+    [autopsy]="apt"
+    [foremost]="apt"
+    [scalpel]="apt"
+    [magicrescue]="apt"
+    [testdisk]="apt"
+    [photorec]="apt"
+    [rsync]="apt"
+    [tripwire]="apt"
+    [duplicity]="apt"
+    [borg]="apt"
+    [dcfldd]="apt"
+)
+
+# Dependencies: tools that must be installed first (array per tool)
+declare -A TOOL_DEPS=(
+    [nuclei]="go"
+    [httpx]="go"
+    [subfinder]="go"
+    [amass]="go"
+    [snyk]="npm"
+    [peepdf]="python3"
+    [python-docx]="python3"
+    [yq]="snap"
+)
+
+# --- Helper functions ---
+
+# Get all tools for a given phase
+tools_by_phase() {
+    local phase="$1"
+    local result=()
+    for tool in "${!TOOL_PHASE[@]}"; do
+        if [[ "${TOOL_PHASE[$tool]}" == "$phase" ]]; then
+            result+=("$tool")
+        fi
+    done
+    # Sort by name for deterministic output
+    IFS=$'\n' result=($(sort <<<"${result[*]}")); unset IFS
+    echo "${result[@]}"
+}
+
+# Get install method for a tool
+tool_method() {
+    local tool="$1"
+    echo "${TOOL_METHOD[$tool]:-apt}"
+}
+
+# Get package name for a tool
+tool_pkg() {
+    local tool="$1"
+    echo "${TOOL_PKG[$tool]:-$tool}"
+}
+
+# Get binary name for a tool
+tool_bin() {
+    local tool="$1"
+    echo "${TOOL_BIN[$tool]:-$tool}"
+}
+
+# Get description for a tool
+tool_desc() {
+    local tool="$1"
+    echo "${TOOL_DESC[$tool]:-No description available}"
+}
+
+# Get phase for a tool
+tool_phase() {
+    local tool="$1"
+    echo "${TOOL_PHASE[$tool]:-Unknown}"
+}
+
+# Check if tool is already installed
+tool_installed() {
+    local tool="$1"
+    local bin
+    bin=$(tool_bin "$tool")
+    command -v "$bin" &>/dev/null
+}
+
+# Count tools in a phase
+phase_tool_count() {
+    local phase="$1"
+    local count=0
+    for tool in "${!TOOL_PHASE[@]}"; do
+        [[ "${TOOL_PHASE[$tool]}" == "$phase" ]] && ((count++))
+    done
+    echo "$count"
+}
+
+# All phase names
+ALL_PHASES=("Assessment" "Malware Analysis" "Brand Protection" "Incident Response")
+
+# Print tool count per phase
+phase_summary() {
+    echo "  Fase                Herramientas"
+    echo "  ─────────────────────────────────────"
+    for phase in "${ALL_PHASES[@]}"; do
+        local count
+        count=$(phase_tool_count "$phase")
+        printf "  %-20s %3d\n" "${phase}:" "$count"
+    done
+    printf "  %-20s %3d\n" "TOTAL:" "$(phase_tool_count_all)"
+}
+
+phase_tool_count_all() {
+    local total=0
+    for tool in "${!TOOL_PHASE[@]}"; do
+        ((total++))
+    done
+    echo "$total"
+}

@@ -1,0 +1,51 @@
+# ============================================================================
+# .gitignore — PaginasAudit Cyber Audit Installer
+# ============================================================================
+
+# --- Logs ---
+paginas-auditorias/logs/
+*.log
+
+# --- Generated Reports ---
+paginas-auditorias/reports/
+paginas-auditorias/audits/
+
+# --- OS Files ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Editor/IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.bak
+
+# --- Temp / Cache ---
+/tmp/
+/temp/
+*.tmp
+*.cache
+paginas-auditorias/config/settings.cfg.local
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# --- Node ---
+node_modules/
+npm-debug.log*
+
+# --- Environment ---
+.env
+.env.local
+*.key
+*.pem
+*.cert
+secrets/
