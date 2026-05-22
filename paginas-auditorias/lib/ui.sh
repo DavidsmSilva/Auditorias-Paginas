@@ -179,22 +179,18 @@ ui_gauge() {
 # ui_spinner <pid> <message>
 ui_spinner() {
     local pid=$1
-    local msg="${2:-Working...}"
+    local msg="${2:-Trabajando...}"
     local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
     local i=0
 
-    # Only show spinner in fallback mode
-    if ! __dialog_avail; then
-        printf "  ${FG_CYN}${msg}${RST} "
-        while kill -0 "$pid" 2>/dev/null; do
-            printf "\b${FG_BGRN}%s${RST}" "${spinstr:$i:1}"
-            i=$(( (i + 1) % ${#spinstr} ))
-            sleep 0.1
-        done
-        printf "\b${FG_GRN}✓${RST}\n"
-    else
-        wait "$pid" 2>/dev/null
-    fi
+    printf "  ${FG_CYN}${msg}${RST} "
+    while kill -0 "$pid" 2>/dev/null; do
+        printf "\b${FG_BGRN}%s${RST}" "${spinstr:$i:1}"
+        i=$(( (i + 1) % ${#spinstr} ))
+        sleep 0.1
+    done
+    printf "\b${FG_GRN}✓${RST}\n"
+    wait "$pid" 2>/dev/null
     return $?
 }
 

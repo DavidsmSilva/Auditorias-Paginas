@@ -139,12 +139,25 @@ os_check_compat() {
 # pkg_update — update package lists
 pkg_update() {
     log_info "Actualizando índices de paquetes..."
+    local ret=0
     if os_family_debian; then
-        sudo_exec apt-get update -qq 2>&1 | log_debug || true
+        sudo_exec apt-get update 2>&1 || ret=$?
+        if [[ $ret -ne 0 ]]; then
+            log_error "Falló apt-get update (código: $ret)"
+            return $ret
+        fi
     elif [[ "${OS_INFO[FAMILY]}" == "arch" ]]; then
-        sudo_exec pacman -Sy --noconfirm 2>&1 | log_debug || true
+        sudo_exec pacman -Sy --noconfirm 2>&1 || ret=$?
+        if [[ $ret -ne 0 ]]; then
+            log_error "Falló pacman -Sy (código: $ret)"
+            return $ret
+        fi
     elif [[ "${OS_INFO[FAMILY]}" == "fedora" ]]; then
-        sudo_exec dnf check-update -q 2>&1 | log_debug || true
+        sudo_exec dnf check-update -q 2>&1 || ret=$?
+        if [[ $ret -ne 0 ]]; then
+            log_error "Falló dnf check-update (código: $ret)"
+            return $ret
+        fi
     else
         log_warn "No se pudo actualizar paquetes — OS no soportado"
     fi
@@ -155,22 +168,27 @@ pkg_update() {
 pkg_install() {
     local pkgs=("$@")
     log_info "Instalando paquetes: ${pkgs[*]}"
+    local ret=0
 
     if os_family_debian; then
-        DEBIAN_FRONTEND=noninteractive sudo_exec apt-get install -y -qq "${pkgs[@]}" 2>&1 | log_debug || {
+        # Show real progress: download %, unpacking, setting up
+        DEBIAN_FRONTEND=noninteractive sudo_exec apt-get install -y "${pkgs[@]}" 2>&1 || ret=$?
+        if [[ $ret -ne 0 ]]; then
             log_error "Falló instalación de: ${pkgs[*]}"
-            return 1
-        }
+            return $ret
+        fi
     elif [[ "${OS_INFO[FAMILY]}" == "arch" ]]; then
-        sudo_exec pacman -S --noconfirm --needed "${pkgs[@]}" 2>&1 | log_debug || {
+        sudo_exec pacman -S --noconfirm --needed "${pkgs[@]}" 2>&1 || ret=$?
+        if [[ $ret -ne 0 ]]; then
             log_error "Falló instalación de: ${pkgs[*]}"
-            return 1
-        }
+            return $ret
+        fi
     elif [[ "${OS_INFO[FAMILY]}" == "fedora" ]]; then
-        sudo_exec dnf install -y "${pkgs[@]}" 2>&1 | log_debug || {
+        sudo_exec dnf install -y "${pkgs[@]}" 2>&1 || ret=$?
+        if [[ $ret -ne 0 ]]; then
             log_error "Falló instalación de: ${pkgs[*]}"
-            return 1
-        }
+            return $ret
+        fi
     else
         log_error "No hay gestor de paquetes para ${OS_INFO[FAMILY]}"
         return 1
