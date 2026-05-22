@@ -1,6 +1,6 @@
 # PaginasAudit — Cyber Audit Toolkit
 
-Auditoría automatizada de ciberseguridad para sitios web. 69 herramientas organizadas en 4 fases, instalador inteligente y reportes profesionales en **TXT + JSON + HTML + DOCX**.
+> Auditoría automatizada de ciberseguridad para sitios web. 69 herramientas en 4 fases, instalador inteligente, reportes TXT + JSON + HTML + DOCX.
 
 ```bash
 curl -sL https://raw.githubusercontent.com/DavidsmSilva/Auditorias-Paginas/main/installer.sh | bash
@@ -8,209 +8,99 @@ curl -sL https://raw.githubusercontent.com/DavidsmSilva/Auditorias-Paginas/main/
 
 ---
 
-## Características
-
-- **Auditoría automática** con un solo comando contra cualquier URL
-- **4 fases** de análisis: Assessment, Malware, Brand Protection, IR Readiness
-- **69 herramientas** registradas con instalación inteligente (apt/pip/npm/gem/go/cargo/snap)
-- **Reportes profesionales** en TXT, JSON, HTML interactivo y DOCX (Word)
-- **Instalador One-Command** — clona, instala dependencias y ejecuta
-- **TUI interactivo** con `dialog` + menús y barras de progreso
-- **Multi-plataforma**: Kali Linux, Debian, Ubuntu, Arch, Fedora
-
----
-
-## Instalación
-
-### One-command (recomendado)
+## Quick Start — 3 pasos
 
 ```bash
+# 1. Instalar (clona el repo + menú interactivo)
 curl -sL https://raw.githubusercontent.com/DavidsmSilva/Auditorias-Paginas/main/installer.sh | bash
+
+# 2. Navegar al directorio
+cd ~/tools/Auditorias-Paginas
+
+# 3. Auditar un sitio
+bash paginas-auditorias/audit.sh --audit https://ejemplo.com
 ```
 
-### Con instalación completa de herramientas
-
-```bash
-curl -sL https://raw.githubusercontent.com/DavidsmSilva/Auditorias-Paginas/main/installer.sh | bash -s -- --install-all
-```
-
-### Directorio personalizado
-
-```bash
-INSTALL_DIR=/opt/audit-tools curl -sL URL | bash
-```
-
-### Rama específica
-
-```bash
-REPO_BRANCH=develop curl -sL URL | bash
-```
+> 💡 **Tip**: si querés instalar TODAS las herramientas primero (nmap, sqlmap, wireshark, etc.):
+> ```bash
+> curl -sL https://raw.githubusercontent.com/DavidsmSilva/Auditorias-Paginas/main/installer.sh | bash -s -- --install-all
+> ```
 
 ---
 
-## Uso
+## Comandos
 
-### Auditoría automática (recomendado)
-
-```bash
-./audit.sh --audit https://ejemplo.com
-./audit.sh --audit https://ejemplo.com ./resultados
-```
-
-### Menú interactivo
-
-```bash
-./audit.sh
-```
-
-### Instalación de herramientas
-
-```bash
-./audit.sh --install-all              # Las 4 fases completas
-./audit.sh --install-phase 1          # Fase específica (1-4)
-./audit.sh --install-tool nmap        # Herramienta específica
-```
-
-### Verificación
-
-```bash
-./audit.sh --verify                   # Verificar instalación
-./audit.sh --report                   # Generar reporte de verificación
-```
-
-### Información
-
-```bash
-./audit.sh --help                     # Ayuda completa
-./audit.sh --version                  # Versión
-./audit.sh --list-tools               # Listar herramientas por fase
-```
+| Comando | Qué hace |
+|---------|----------|
+| `./audit.sh` | Menú interactivo (TUI) |
+| `./audit.sh --audit https://ejemplo.com` | Auditoría completa a un sitio |
+| `./audit.sh --audit https://ejemplo.com ./resultados` | Auditoría + carpeta de salida |
+| `./audit.sh --install-all` | Instalar TODAS las herramientas |
+| `./audit.sh --install-phase 1` | Instalar herramientas de una fase |
+| `./audit.sh --install-tool nmap` | Instalar una herramienta específica |
+| `./audit.sh --verify` | Verificar qué tools están instaladas |
+| `./audit.sh --report` | Generar reporte de verificación |
+| `./audit.sh --list-tools` | Listar todas las herramientas |
+| `./audit.sh --help` | Ayuda completa |
+| `./audit.sh --version` | Versión instalada |
 
 ---
 
 ## Las 4 Fases
 
-### Fase 1: Assessment (23 herramientas)
-
-| Herramienta | Descripción |
-|-------------|-------------|
-| Nmap | Escaneo de puertos y servicios con NSE |
-| Nikto | Escáner de vulnerabilidades web |
-| WhatWeb | Identificación de tecnologías web |
-| Nuclei | Escáner basado en templates YAML |
-| WPScan | Vulnerabilidades WordPress |
-| SSLScan / TestSSL | Evaluación SSL/TLS |
-| DNSRecon / DNSEnum | Enumeración DNS |
-| Gobuster / Dirb | Fuzzing de directorios |
-| SQLMap | Detección de SQL Injection |
-| ZAP / Burp Suite | Proxy de interceptación (DAST) |
-| + 11 más | Hydra, Amass, Subfinder, etc. |
-
-### Fase 2: Malware Analysis (16 herramientas)
-
-| Herramienta | Descripción |
-|-------------|-------------|
-| Lynis | Auditoría de seguridad del sistema |
-| ClamAV | Antivirus open-source |
-| YARA | Clasificación de malware por patrones |
-| ExifTool | Análisis de metadatos |
-| Chkrootkit / Rkhunter | Detección de rootkits |
-| AIDE | Monitor de integridad |
-| Binwalk | Análisis de firmware |
-| Radare2 | Reverse engineering |
-| **python-docx** | Generación de reportes DOCX profesionales |
-| + 7 más | Snyk, Peepdf, JQ, Strings, etc. |
-
-### Fase 3: Brand Protection (11 herramientas)
-
-| Herramienta | Descripción |
-|-------------|-------------|
-| DNSTwist | Detección de typosquatting |
-| theHarvester | OSINT de emails y subdominios |
-| Sublist3r | Enumeración rápida de subdominios |
-| Holehe | Verificación de cuentas por email |
-| HIBP | Consulta de fugas de credenciales |
-| SpiderFoot | Automatización de OSINT |
-| + 5 más | GHunt, Social-Analyzer, WhatsMyName, etc. |
-
-### Fase 4: Incident Response (19 herramientas)
-
-| Herramienta | Descripción |
-|-------------|-------------|
-| Wireshark / TShark | Análisis de tráfico de red |
-| Tcpdump | Captura de paquetes |
-| Volatility | Forense de memoria RAM |
-| Sleuth Kit / Autopsy | Forense de sistema de archivos |
-| Bulk Extractor | Extracción forense de datos |
-| Guymager / DD Rescue | Adquisición forense de discos |
-| Foremost / Scalpel | File carving |
-| **Tripwire** | Monitor de integridad de archivos |
-| **Duplicity** | Backups cifrados incrementales |
-| **Borg** | Backup deduplicante |
-| **dcfldd** | DD forense con hashing |
-| + 8 más | TestDisk, PhotoRec, MagicRescue, etc. |
+| # | Fase | Tools | Algunas herramientas |
+|---|------|-------|---------------------|
+| 1 | **Assessment** | 23 | Nmap, Nikto, WhatWeb, Nuclei, WPScan, SQLmap, ZAP, Gobuster... |
+| 2 | **Malware Analysis** | 13 | Lynis, ClamAV, YARA, ExifTool, Radare2, Chkrootkit, AIDE... |
+| 3 | **Brand Protection** | 11 | DNSTwist, theHarvester, Sublist3r, Holehe, SpiderFoot, GHunt... |
+| 4 | **Incident Response** | 19 | Wireshark, Volatility, Sleuth Kit, Tripwire, Borg, Bulk Extractor... |
 
 ---
 
 ## Reportes
 
-Cada auditoría genera 4 formatos de reporte:
+Cada auditoría genera **4 formatos**:
 
-| Formato | Archivo | Descripción |
-|---------|---------|-------------|
-| **TXT** | `audit-report.txt` | Reporte texto plano, lista de hallazgos |
-| **JSON** | `audit-report.json` | Estructura de datos para procesamiento |
-| **HTML** | `audit-report.html` | Interactivo con filtros por severidad, secciones colapsables |
-| **DOCX** | `audit-report.docx` | Documento Word profesional con portada, tabla de contenidos, hallazgos por severidad, fases detalladas, recomendaciones y apéndice |
+| Formato | Archivo | Para qué |
+|---------|---------|----------|
+| TXT | `audit-report.txt` | Lectura rápida en terminal |
+| JSON | `audit-report.json` | Procesamiento automatizado |
+| HTML | `audit-report.html` | Informe interactivo con filtros |
+| DOCX | `audit-report.docx` | Documento Word profesional con portada, TOC y hallazgos |
 
-### Estructura del reporte DOCX
+---
 
-```
-1. Portada corporativa
-2. Índice / Tabla de Contenidos
-3. Resumen Ejecutivo (hallazgos por severidad)
-4. Información del Target (URL, IP, WAF, tecnologías)
-5. Hallazgos Detallados (tabla por severidad con colores)
-6. Detalle por Fase (Assessment, Malware, Brand, IR)
-7. Recomendaciones priorizadas
-8. Apéndice (metadatos, tiempos de ejecución)
-```
+## Troubleshooting
+
+| Problema | Causa | Solución |
+|----------|-------|----------|
+| `curl: (6) Could not resolve host` | Sin internet | Verificar conectividad |
+| `bash: línea 1: 404:: orden no encontrada` | URL incorrecta | Usar exactamente: `curl -sL https://raw.githubusercontent.com/DavidsmSilva/Auditorias-Paginas/main/installer.sh \| bash` |
+| `git not found` | Kali minimal | `sudo apt install git` |
+| `Permission denied` | Sin ejecución | `chmod +x paginas-auditorias/*.sh` |
+| `python-docx` no instalado | Reporte DOCX | Correr `pip install python-docx` o `--install-all` |
+| Las tools no se instalan | Faltan dependencias | `./audit.sh --install-all` instala todo automáticamente |
 
 ---
 
 ## Arquitectura
 
 ```
-├── installer.sh              # [raíz] One-command GitHub installer
+├── installer.sh              # One-command installer (raíz del repo)
 ├── README.md
-├── .gitignore
 └── paginas-auditorias/
-    ├── audit.sh                  # Entry point CLI + TUI
+    ├── audit.sh               # Entry point CLI + TUI
     ├── config/
-    │   ├── tools.db              # Registro central de 69 herramientas
-    │   └── settings.cfg          # Configuración del instalador
-    ├── lib/
-    │   ├── colors.sh             # Estilos ANSI
-    │   ├── logging.sh            # Sistema de logging
-    │   ├── ui.sh                 # Abstracción TUI (dialog/whiptail)
-    │   ├── utils.sh              # OS detection, package abstraction
-    │   ├── verify.sh             # Verificación + generación de reportes
-    │   └── docx_report.py        # Generador de reportes DOCX (python-docx)
-    └── modules/
-        ├── 00-automated-audit.sh # Pipeline automatizado completo
-        ├── 01-assessment.sh      # Fase 1: Assessment
-        ├── 02-malware.sh         # Fase 2: Malware Analysis
-        ├── 03-brand-protection.sh# Fase 3: Brand Protection
-        └── 04-incident-response.sh# Fase 4: Incident Response
+    │   ├── tools.db           # Registro de 69 herramientas
+    │   └── settings.cfg       # Configuración
+    ├── lib/                   # Librerías (colors, logging, ui, utils, verify)
+    └── modules/               # Fases 1-4 + pipeline automatizado
 ```
 
-### Pipeline de auditoría
-
+**Pipeline de auditoría:**
 ```
-URL → Pre-flight (DNS + WAF) → Assessment (8 pasos)
-                              → Malware Analysis (4 pasos)
-                              → Brand Protection (4 pasos)
-                              → IR Readiness Checklist
+URL → Pre-flight (DNS + WAF) → Assessment → Malware Analysis
+                              → Brand Protection → IR Readiness
                               → Reportes (TXT + JSON + HTML + DOCX)
 ```
 
@@ -219,23 +109,7 @@ URL → Pre-flight (DNS + WAF) → Assessment (8 pasos)
 ## Requisitos
 
 - **Sistema**: Kali Linux (recomendado), Debian 11+, Ubuntu 22.04+, Arch, Fedora
-- **Dependencias base**: `bash`, `git`, `curl`, `python3`, `pip3`, `dialog`
-- **Reportes DOCX**: `python-docx` (se instala automáticamente con `--install-all`)
-
----
-
-## Hoja de Ruta
-
-- [x] Instalador modular con registro de 69 herramientas
-- [x] Pipeline de auditoría automática (4 fases)
-- [x] Reportes TXT + JSON + HTML interactivo
-- [x] Reportes DOCX profesionales (python-docx)
-- [x] Instalador One-Command desde GitHub
-- [x] 4 herramientas adicionales registradas (Tripwire, Duplicity, Borg, dcfldd)
-- [ ] Soporte para proxies y autenticación
-- [ ] Escaneo programado (cron)
-- [ ] Integración con Slack/Teams para notificaciones
-- [ ] Dashboard web embebido
+- **Base**: `bash`, `git`, `curl`, `python3`, `pip3`, `dialog`
 
 ---
 
