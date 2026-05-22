@@ -77,9 +77,9 @@ clone_or_update() {
     fi
 
     cd "$INSTALL_DIR"
-    chmod +x audit.sh 2>/dev/null || true
-    find "${INSTALL_DIR}/lib" -name '*.sh' -exec chmod +x {} \; 2>/dev/null || true
-    find "${INSTALL_DIR}/modules" -name '*.sh' -exec chmod +x {} \; 2>/dev/null || true
+    chmod +x paginas-auditorias/audit.sh 2>/dev/null || true
+    find "${INSTALL_DIR}/paginas-auditorias/lib" -name '*.sh' -exec chmod +x {} \; 2>/dev/null || true
+    find "${INSTALL_DIR}/paginas-auditorias/modules" -name '*.sh' -exec chmod +x {} \; 2>/dev/null || true
 }
 
 # ---- Banner ---------------------------------------------------------------
@@ -148,7 +148,7 @@ main() {
 
     # Launch audit.sh passing through any arguments
     cd "$INSTALL_DIR"
-    exec bash audit.sh "$@"
+    exec bash paginas-auditorias/audit.sh "$@"
 }
 
 main "$@"

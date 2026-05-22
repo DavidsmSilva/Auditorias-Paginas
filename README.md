@@ -181,25 +181,27 @@ Cada auditoría genera 4 formatos de reporte:
 ## Arquitectura
 
 ```
-paginas-auditorias/
-├── audit.sh                  # Entry point CLI + TUI
-├── installer.sh              # One-command GitHub installer
-├── config/
-│   ├── tools.db              # Registro central de 69 herramientas
-│   └── settings.cfg          # Configuración del instalador
-├── lib/
-│   ├── colors.sh             # Estilos ANSI
-│   ├── logging.sh            # Sistema de logging
-│   ├── ui.sh                 # Abstracción TUI (dialog/whiptail)
-│   ├── utils.sh              # OS detection, package abstraction
-│   ├── verify.sh             # Verificación + generación de reportes
-│   └── docx_report.py        # Generador de reportes DOCX (python-docx)
-└── modules/
-    ├── 00-automated-audit.sh # Pipeline automatizado completo
-    ├── 01-assessment.sh      # Fase 1: Assessment
-    ├── 02-malware.sh         # Fase 2: Malware Analysis
-    ├── 03-brand-protection.sh# Fase 3: Brand Protection
-    └── 04-incident-response.sh# Fase 4: Incident Response
+├── installer.sh              # [raíz] One-command GitHub installer
+├── README.md
+├── .gitignore
+└── paginas-auditorias/
+    ├── audit.sh                  # Entry point CLI + TUI
+    ├── config/
+    │   ├── tools.db              # Registro central de 69 herramientas
+    │   └── settings.cfg          # Configuración del instalador
+    ├── lib/
+    │   ├── colors.sh             # Estilos ANSI
+    │   ├── logging.sh            # Sistema de logging
+    │   ├── ui.sh                 # Abstracción TUI (dialog/whiptail)
+    │   ├── utils.sh              # OS detection, package abstraction
+    │   ├── verify.sh             # Verificación + generación de reportes
+    │   └── docx_report.py        # Generador de reportes DOCX (python-docx)
+    └── modules/
+        ├── 00-automated-audit.sh # Pipeline automatizado completo
+        ├── 01-assessment.sh      # Fase 1: Assessment
+        ├── 02-malware.sh         # Fase 2: Malware Analysis
+        ├── 03-brand-protection.sh# Fase 3: Brand Protection
+        └── 04-incident-response.sh# Fase 4: Incident Response
 ```
 
 ### Pipeline de auditoría
