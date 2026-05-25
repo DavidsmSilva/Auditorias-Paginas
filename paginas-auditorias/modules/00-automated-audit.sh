@@ -130,17 +130,27 @@ findings_total() {
 audit_normalize_url() {
     local url="$1"
 
+    # Defensive: ensure we have a URL (set -u guard)
+    if [[ -z "${url:-}" ]]; then
+        log_error "audit_normalize_url: URL vacía"
+        return 1
+    fi
+
     # Add scheme if missing
     if [[ "$url" != http://* && "$url" != https://* ]]; then
         url="https://${url}"
         log_info "Scheme añadido: ${url}"
     fi
 
+    # ⚠️  Paréntesis temporal para evitar que set -u + :// causen errores
+    #     en bash 5.2+ con patrones de expansión de parámetros
+    set +u
     AUDIT_TARGET[url]="$url"
     AUDIT_TARGET[scheme]="${url%%://*}"
     AUDIT_TARGET[base]="${url#*://}"
     AUDIT_TARGET[base]="${AUDIT_TARGET[base]%%/*}"
     AUDIT_TARGET[domain]="${AUDIT_TARGET[base]}"
+    set -u
 
     # Extract hostname (remove port if present)
     local host="${AUDIT_TARGET[base]}"
@@ -1122,6 +1132,8 @@ audit_generate_report_html() {
     }
     </script>'
 
+    # ⚠️  Heredoc con delimiter sin comillas para que bash expanda ${AUDIT_TARGET[url]}, etc.
+    #     Los ${} de JavaScript (risk_score, risk_label) se escapan con \$ para que NO se expandan
     cat > "$file" << HTMLEOF
 <!DOCTYPE html>
 <html lang="es">
@@ -1182,8 +1194,8 @@ ${js}
   </div>
 
   <div class="risk-meter">
-    <div class="score" style="color: ${risk_score > 50 ? '#dc3545' : risk_score > 25 ? '#fd7e14' : risk_score > 10 ? '#ffc107' : '#0dcaf0'}">${risk_score}</div>
-    <div class="label">Risk Score — ${risk_label}</div>
+    <div class="score" style="color: \${risk_score > 50 ? '#dc3545' : risk_score > 25 ? '#fd7e14' : risk_score > 10 ? '#ffc107' : '#0dcaf0'}">\${risk_score}</div>
+    <div class="label">Risk Score — \${risk_label}</div>
   </div>
 
   <h2 onclick="toggleSection('findings-section')">🔍 Findings ▾</h2>
