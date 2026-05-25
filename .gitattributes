@@ -1,0 +1,15 @@
+# Normalize line endings — LF for everything (Unix-friendly)
+* text=auto
+
+# Shell scripts MUST have LF endings (Kali Linux)
+*.sh text eol=lf
+
+# Binary files — no conversion
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.tar.gz binary
+*.pdf binary
