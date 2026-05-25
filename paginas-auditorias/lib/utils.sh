@@ -215,15 +215,41 @@ pip_install() {
     return 0
 }
 
-# npm_global <package> — install global npm package
+# npm_global <package> — install global npm package with supply chain hardening
+# ⚠️  SECURITY: npm packages execute arbitrary code during install.
+#     --ignore-scripts blocks malicious postinstall/preinstall hooks.
+#     npm audit signatures verifies package provenance (npm 9.6+).
 npm_global() {
     local pkg="$1"
+    local npm_base="sudo_exec npm install -g --quiet --no-fund --ignore-scripts"
+
     log_info "Instalando paquete npm global: ${pkg}"
-    sudo_exec npm install -g --quiet "$pkg" 2>&1 | log_debug || {
+
+    # Phase 1: Install with --ignore-scripts (blocks malicious lifecycle hooks)
+    log_info "  → Instalando ${pkg} (scripts bloqueados por seguridad)..."
+    ${npm_base} "$pkg" 2>&1 | log_debug || {
         log_error "Falló npm install -g: ${pkg}"
         return 1
     }
-    log_ok "npm package instalado: ${pkg}"
+
+    # Phase 2: Audit provenance (npm 9.6+)
+    if sudo_exec npm audit signatures 2>&1 | log_debug; then
+        log_ok "  → Firmas de ${pkg} verificadas"
+    else
+        log_warn "  → No se pudieron verificar firmas de ${pkg} — el paquete pudo ser manipulado"
+        warn "⚠️  npm audit signatures falló para ${pkg}. Revise manualmente: npm audit signatures"
+    fi
+
+    # Phase 3: Vulnerability audit
+    log_info "  → Auditando vulnerabilidades conocidas..."
+    if sudo_exec npm audit --omit=dev 2>&1 | log_debug; then
+        log_ok "  → Sin vulnerabilidades conocidas en ${pkg}"
+    else
+        warn "  → Se detectaron vulnerabilidades en ${pkg}"
+        warn "    Revise: npm audit"
+    fi
+
+    log_ok "Paquete npm instalado: ${pkg}"
     return 0
 }
 

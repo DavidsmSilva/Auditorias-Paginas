@@ -135,7 +135,8 @@ brand_install_social_analyzer() {
     # Requires npm
     if ! cmd_exists npm; then
         log_info "npm requerido. Instalando Node.js..."
-        pkg_install nodejs npm
+        pkg_install nodejs || log_warn "nodejs no se pudo instalar"
+        pkg_install npm || log_warn "npm no se pudo instalar"
     fi
 
     npm_global "social-analyzer"
