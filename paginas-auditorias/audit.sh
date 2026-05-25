@@ -183,9 +183,18 @@ install_core_deps() {
         pkg_install python3-pip
     fi
 
+    # Fresh package cache before npm/nodejs install (may have been skipped if core pkgs were present)
+    pkg_update
+
+    # Install nodejs first, then npm separately — and make it NON-FATAL
+    if ! cmd_exists node; then
+        log_info "Instalando nodejs..."
+        pkg_install nodejs || log_warn "nodejs no se pudo instalar — algunas herramientas requerirán Node.js"
+    fi
+
     if ! cmd_exists npm; then
         log_info "Instalando npm..."
-        pkg_install npm nodejs
+        pkg_install npm || log_warn "npm no se pudo instalar — funciones npm no estarán disponibles"
     fi
 
     # Install python-docx for professional DOCX report generation

@@ -164,29 +164,34 @@ pkg_update() {
     log_ok "Índices actualizados"
 }
 
+# pkg_join — join array elements with space (IFS-safe)
+pkg_join() { local IFS=' '; echo "$*"; }
+
 # pkg_install <packages...> — install via system package manager
 pkg_install() {
     local pkgs=("$@")
-    log_info "Instalando paquetes: ${pkgs[*]}"
+    local pkg_list
+    pkg_list=$(pkg_join "${pkgs[@]}")
+    log_info "Instalando paquetes: ${pkg_list}"
     local ret=0
 
     if os_family_debian; then
         # Show real progress: download %, unpacking, setting up
         DEBIAN_FRONTEND=noninteractive sudo_exec apt-get install -y "${pkgs[@]}" 2>&1 || ret=$?
         if [[ $ret -ne 0 ]]; then
-            log_error "Falló instalación de: ${pkgs[*]}"
+            log_error "Falló instalación de: ${pkg_list}"
             return $ret
         fi
     elif [[ "${OS_INFO[FAMILY]}" == "arch" ]]; then
         sudo_exec pacman -S --noconfirm --needed "${pkgs[@]}" 2>&1 || ret=$?
         if [[ $ret -ne 0 ]]; then
-            log_error "Falló instalación de: ${pkgs[*]}"
+            log_error "Falló instalación de: ${pkg_list}"
             return $ret
         fi
     elif [[ "${OS_INFO[FAMILY]}" == "fedora" ]]; then
         sudo_exec dnf install -y "${pkgs[@]}" 2>&1 || ret=$?
         if [[ $ret -ne 0 ]]; then
-            log_error "Falló instalación de: ${pkgs[*]}"
+            log_error "Falló instalación de: ${pkg_list}"
             return $ret
         fi
     else
@@ -194,7 +199,7 @@ pkg_install() {
         return 1
     fi
 
-    log_ok "Paquetes instalados: ${pkgs[*]}"
+    log_ok "Paquetes instalados: ${pkg_list}"
     return 0
 }
 
