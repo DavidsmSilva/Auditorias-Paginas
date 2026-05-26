@@ -322,10 +322,10 @@ npm_harden_global() {
         local val="${config#*=}"
         if sudo_exec npm config set "$key" "$val" 2>/dev/null; then
             log_info "  → npm config set ${key}=${val}  ✓"
-            ((applied++))
+            applied=$((applied + 1))
         else
             log_warn "  → npm config set ${key}=${val}  ✗"
-            ((failed++))
+            failed=$((failed + 1))
         fi
     done
 
