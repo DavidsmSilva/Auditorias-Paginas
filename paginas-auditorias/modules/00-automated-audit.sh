@@ -107,7 +107,7 @@ findings_by_severity() {
         if [[ "$fsev" == "$sev" ]]; then
             echo "$i"
         fi
-        ((i++))
+        i=$((i + 1))
     done
 }
 
@@ -564,7 +564,7 @@ audit_malware() {
                 local fname
                 fname=$(basename "${img_url%%\?*}")
                 curl -sL --max-time 10 "$full_url" -o "${img_dir}/${fname}" 2>/dev/null || true
-                ((count++))
+                count=$((count + 1))
             done < "${AUDIT_DIR}/resources/img-urls.txt"
 
             # Run exiftool on downloaded images
@@ -1102,13 +1102,13 @@ audit_generate_report_html() {
     # Ports HTML
     local ports_html=""
     if [[ -f "${AUDIT_DIR}/scans/nmap/quick-scan.txt" ]]; then
-        ports_html=$(grep "^[0-9]" "${AUDIT_DIR}/scans/nmap/quick-scan.txt" 2>/dev/null | head -30 | sed 's/$/<br>/')
+        ports_html=$(grep "^[0-9]" "${AUDIT_DIR}/scans/nmap/quick-scan.txt" 2>/dev/null | head -30 | sed 's/$/<br>/') || true
     fi
 
     # Technologies HTML
     local tech_html=""
     if [[ -f "${AUDIT_DIR}/scans/web/whatweb.txt" ]]; then
-        tech_html=$(cat "${AUDIT_DIR}/scans/web/whatweb.txt" | sed 's/$/<br>/')
+        tech_html=$(cat "${AUDIT_DIR}/scans/web/whatweb.txt" | sed 's/$/<br>/') || true
     fi
 
     # JavaScript for interactivity
@@ -1331,8 +1331,8 @@ audit_url() {
             "No se pudo verificar el target. La auditoría no pudo completarse." \
             "Verificar que la URL sea correcta y el target esté accesible."
         AUDIT_END_TIME=$(date +%s)
-        audit_generate_report_txt
-        audit_generate_report_json
+        audit_generate_report_txt || true
+        audit_generate_report_json || true
         return 1
     fi
 
@@ -1373,10 +1373,10 @@ audit_url() {
     log_section "GENERANDO REPORTES"
     info "Consolidando hallazgos de las 4 fases..."
 
-    audit_generate_report_txt
-    audit_generate_report_json
-    audit_generate_report_html
-    audit_generate_report_docx
+    audit_generate_report_txt || log_warn "Reporte TXT no generado"
+    audit_generate_report_json || log_warn "Reporte JSON no generado"
+    audit_generate_report_html || log_warn "Reporte HTML no generado"
+    audit_generate_report_docx || log_warn "Reporte DOCX no generado (python-docx?)"
 
     # 5. Print summary
     echo ""
