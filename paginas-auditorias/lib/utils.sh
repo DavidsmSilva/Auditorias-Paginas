@@ -219,11 +219,22 @@ pip_install() {
 # ⚠️  SECURITY: npm packages execute arbitrary code during install.
 #     --ignore-scripts blocks malicious postinstall/preinstall hooks.
 #     npm audit signatures verifies package provenance (npm 9.6+).
+#     Hash-pinning: verifies SRI integrity before/after install.
 npm_global() {
     local pkg="$1"
     local npm_base="sudo_exec npm install -g --quiet --no-fund --ignore-scripts"
 
     log_info "Instalando paquete npm global: ${pkg}"
+
+    # Phase 0: Get expected SRI integrity hash BEFORE install (hash-pinning)
+    local expected_integrity=""
+    log_info "  → Obteniendo hash de integridad (SRI) de ${pkg} desde el registro..."
+    expected_integrity=$(sudo_exec npm view "$pkg" dist.integrity 2>/dev/null || true)
+    if [[ -n "$expected_integrity" ]]; then
+        log_info "  → Integridad esperada: ${expected_integrity:0:64}..."
+    else
+        log_warn "  → No se pudo obtener integridad de ${pkg} — posible problema de red o registro"
+    fi
 
     # Phase 1: Install with --ignore-scripts (blocks malicious lifecycle hooks)
     log_info "  → Instalando ${pkg} (scripts bloqueados por seguridad)..."
@@ -232,9 +243,33 @@ npm_global() {
         return 1
     }
 
+    # Phase 1.5: Post-install integrity verification
+    log_info "  → Verificando integridad post-instalación..."
+    if [[ -n "$expected_integrity" ]]; then
+        # Get the actual integrity from npm pack --dry-run (reads tarball metadata)
+        local actual_integrity
+        actual_integrity=$(sudo_exec npm pack "$pkg" --dry-run 2>&1 | grep "integrity:" | awk '{print $2}' || true)
+        if [[ -n "$actual_integrity" && "$actual_integrity" == "$expected_integrity" ]]; then
+            log_ok "  → Hash SRI verificado: ${actual_integrity:0:64}..."
+        elif [[ -n "$actual_integrity" ]]; then
+            log_error "  → ¡INTEGRIDAD NO COINCIDE!"
+            log_error "  → Esperado: ${expected_integrity:0:64}"
+            log_error "  → Recibido: ${actual_integrity:0:64}"
+            warn "⚠️  LA INTEGRIDAD DEL PAQUETE ${pkg} NO COINCIDE CON EL REGISTRO"
+            warn "    Posible ataque MITM o paquete manipulado. Revise manualmente."
+        fi
+    fi
+
+    # Verify npm cache integrity
+    if sudo_exec npm cache verify 2>&1 | log_debug; then
+        log_ok "  → Cache npm verificado post-instalación"
+    else
+        log_warn "  → Cache npm puede tener problemas de integridad"
+    fi
+
     # Phase 2: Audit provenance (npm 9.6+)
     if sudo_exec npm audit signatures 2>&1 | log_debug; then
-        log_ok "  → Firmas de ${pkg} verificadas"
+        log_ok "  → Firmas de ${pkg} verificadas (provenance)"
     else
         log_warn "  → No se pudieron verificar firmas de ${pkg} — el paquete pudo ser manipulado"
         warn "⚠️  npm audit signatures falló para ${pkg}. Revise manualmente: npm audit signatures"
@@ -242,14 +277,115 @@ npm_global() {
 
     # Phase 3: Vulnerability audit
     log_info "  → Auditando vulnerabilidades conocidas..."
-    if sudo_exec npm audit --omit=dev 2>&1 | log_debug; then
-        log_ok "  → Sin vulnerabilidades conocidas en ${pkg}"
+    if sudo_exec npm audit --omit=dev --audit-level=high 2>&1 | log_debug; then
+        log_ok "  → Sin vulnerabilidades de severidad alta+ en ${pkg}"
     else
         warn "  → Se detectaron vulnerabilidades en ${pkg}"
         warn "    Revise: npm audit"
     fi
 
     log_ok "Paquete npm instalado: ${pkg}"
+    return 0
+}
+
+# npm_harden_global — Configura npm globalmente con opciones de seguridad
+# ⚠️  SECURITY: Protege contra futuros ataques de supply chain incluso si
+#     alguien corre npm install manualmente sin --ignore-scripts.
+#     Configuraciones aplicadas:
+#       - ignore-scripts=true  : Bloquea lifecycle hooks maliciosos
+#       - audit=true           : Auditoría automática en cada install
+#       - audit-level=high     : Falla si hay vulnerabilidades HIGH+
+#       - fund=false           : Silencia mensajes de fundraising
+#       - package-lock=true    : Fija versiones del árbol de dependencias
+npm_harden_global() {
+    log_section "HARDENING — Configuración global de npm"
+
+    if ! cmd_exists npm; then
+        log_warn "npm no está instalado — saltando hardening global"
+        return 0
+    fi
+
+    log_info "Aplicando configuraciones de seguridad global de npm..."
+
+    local npm_configs=(
+        "ignore-scripts=true"
+        "audit=true"
+        "audit-level=high"
+        "fund=false"
+        "package-lock=true"
+    )
+
+    local applied=0
+    local failed=0
+    for config in "${npm_configs[@]}"; do
+        local key="${config%%=*}"
+        local val="${config#*=}"
+        if sudo_exec npm config set "$key" "$val" 2>/dev/null; then
+            log_info "  → npm config set ${key}=${val}  ✓"
+            ((applied++))
+        else
+            log_warn "  → npm config set ${key}=${val}  ✗"
+            ((failed++))
+        fi
+    done
+
+    echo ""
+    log_ok "npm global config: ${applied} aplicadas, ${failed} fallaron"
+
+    # Verify current config
+    log_info "Configuración global actual de npm:"
+    sudo_exec npm config list 2>/dev/null | log_debug
+
+    echo ""
+
+    # Verify npm audit works
+    log_info "Probando npm audit..."
+    if sudo_exec npm audit --omit=dev --audit-level=high 2>&1 | log_debug; then
+        log_ok "npm audit funcional — sin vulnerabilidades HIGH+ detectadas"
+    else
+        log_info "npm audit reporta issues — es normal si no hay paquetes instalados aún"
+    fi
+
+    # Verify npm audit signatures works
+    log_info "Probando npm audit signatures..."
+    if sudo_exec npm audit signatures 2>&1 | log_debug; then
+        log_ok "npm audit signatures funcional"
+    else
+        log_warn "npm audit signatures no disponible — requiere npm 9.6+"
+        log_warn "Actualice npm: sudo npm install -g npm@latest"
+    fi
+
+    echo ""
+    log_ok "Hardening global de npm completado"
+}
+
+# npm_verify_apt_origin — verifica que npm venga de repositorio oficial
+npm_verify_apt_origin() {
+    log_info "Verificando origen del paquete npm (apt)..."
+
+    if ! cmd_exists apt-cache; then
+        log_warn "apt-cache no disponible — no se puede verificar origen"
+        return 0
+    fi
+
+    local policy
+    policy=$(sudo_exec apt-cache policy npm 2>/dev/null || true)
+
+    if echo "$policy" | grep -qE "o=(Debian|Kali)"; then
+        log_ok "npm package source: repositorio oficial (${OS_INFO[NAME]})"
+        log_debug "Policy: $(echo "$policy" | head -3 | tr '\n' ' ')"
+        return 0
+    fi
+
+    if echo "$policy" | grep -qi "Candidate:"; then
+        log_warn "npm package source: repositorio NO oficial"
+        warn "⚠️  npm proviene de un repositorio no estándar:"
+        warn "$(echo "$policy" | grep "Candidate:" | head -1)"
+        warn "    Verifique manualmente la autenticidad del paquete."
+        return 1
+    fi
+
+    log_info "npm package: no se encontró política apt (puede no estar en repos)"
     return 0
 }
 

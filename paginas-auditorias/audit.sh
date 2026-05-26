@@ -197,6 +197,14 @@ install_core_deps() {
         pkg_install npm || log_warn "npm no se pudo instalar — funciones npm no estarán disponibles"
     fi
 
+    # 🔒 Supply chain hardening: apply npm global security config
+    if cmd_exists npm; then
+        echo ""
+        npm_verify_apt_origin
+        npm_harden_global
+        echo ""
+    fi
+
     # Install python-docx for professional DOCX report generation
     info "Verificando python-docx para reportes DOCX..."
     if python3 -c "import docx" 2>/dev/null; then
