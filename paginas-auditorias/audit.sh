@@ -160,12 +160,6 @@ install_core_deps() {
         "libpcap-dev"
         "libssl-dev"
         "libffi-dev"
-        # WeasyPrint — HTML to PDF conversion (reporte PDF seguro)
-        "libpango-1.0-0"
-        "libharfbuzz0b"
-        "libpangoft2-1.0-0"
-        "libcairo2"
-        "libgdk-pixbuf2.0-0"
     )
 
     local to_install=()
@@ -181,6 +175,35 @@ install_core_deps() {
         pkg_install "${to_install[@]}"
     else
         log_ok "Todas las dependencias base ya están instaladas."
+    fi
+
+    # WeasyPrint deps for PDF reports — NOT fatal if they fail (optional feature)
+    # libgdk-pixbuf name changed in Debian Bookworm+ (Kali 2026.1+)
+    local weasy_deps=(
+        "libpango-1.0-0"
+        "libharfbuzz0b"
+        "libpangoft2-1.0-0"
+        "libcairo2"
+    )
+    # Detect correct gdk-pixbuf package name
+    if dpkg -s libgdk-pixbuf-2.0-0 &>/dev/null 2>&1; then
+        : # already installed
+    elif apt-cache show libgdk-pixbuf-2.0-0 &>/dev/null 2>&1; then
+        weasy_deps+=("libgdk-pixbuf-2.0-0")
+    else
+        weasy_deps+=("libgdk-pixbuf2.0-0")  # fallback to old name
+    fi
+    local weasy_to_install=()
+    for pkg in "${weasy_deps[@]}"; do
+        if ! dpkg -s "$pkg" &>/dev/null 2>&1; then
+            weasy_to_install+=("$pkg")
+        fi
+    done
+    if [[ ${#weasy_to_install[@]} -gt 0 ]]; then
+        info "Instalando dependencias para reportes PDF (WeasyPrint)..."
+        pkg_install "${weasy_to_install[@]}" || log_warn "Algunas dependencias de WeasyPrint no se instalaron — reportes PDF se saltarán"
+    else
+        log_info "Dependencias de WeasyPrint ya disponibles."
     fi
 
     # Ensure pip and npm basics
