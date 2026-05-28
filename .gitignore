@@ -42,6 +42,9 @@ build/
 node_modules/
 npm-debug.log*
 
+# --- AI / SDD Artifacts ---
+.atl/
+
 # --- Environment ---
 .env
 .env.local
