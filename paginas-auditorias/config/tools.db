@@ -87,6 +87,19 @@ declare -A TOOL_PHASE=(
     [duplicity]="Incident Response"
     [borg]="Incident Response"
     [dcfldd]="Incident Response"
+
+    # Phase 5: SAST — Static Application Security Testing
+    [semgrep]="SAST"
+    [trufflehog]="SAST"
+    [gitleaks]="SAST"
+    [bandit]="SAST"
+
+    # Phase 6: SCA + SBOM — Dependency & Supply Chain Security
+    [trivy]="SCA + SBOM"
+    [dependency-check]="SCA + SBOM"
+    [syft]="SCA + SBOM"
+    [grype]="SCA + SBOM"
+    [osv-scanner]="SCA + SBOM"
 )
 
 # Package names (what to install via apt/pip/npm/snap/cargo)
@@ -160,6 +173,19 @@ declare -A TOOL_PKG=(
     [duplicity]="duplicity"
     [borg]="borgbackup"
     [dcfldd]="dcfldd"
+
+    # Phase 5: SAST
+    [semgrep]="semgrep"
+    [trufflehog]="trufflehog"
+    [gitleaks]="github.com/gitleaks/gitleaks/v8"
+    [bandit]="bandit"
+
+    # Phase 6: SCA + SBOM
+    [trivy]="trivy"
+    [dependency-check]="dependency-check"
+    [syft]="syft"
+    [grype]="grype"
+    [osv-scanner]="github.com/google/osv-scanner/cmd/osv-scanner"
 )
 
 # Human-readable descriptions
@@ -236,6 +262,19 @@ declare -A TOOL_DESC=(
     [duplicity]="Backups cifrados incrementales"
     [borg]="Backup deduplicante comprimido y cifrado"
     [dcfldd]="dd forense con hashing en tiempo real"
+
+    # Phase 5: SAST
+    [semgrep]="Escáner SAST multi-lenguaje con reglas OSS y pro"
+    [trufflehog]="Detección de secretos y credenciales en repositorios"
+    [gitleaks]="Escáner de secretos hardcodeados en repositorios Git"
+    [bandit]="Analizador SAST para Python (PyCQA)"
+
+    # Phase 6: SCA + SBOM
+    [trivy]="Escáner integral de vulnerabilidades (OS, librerías, IaC)"
+    [dependency-check]="OWASP Dependency-Check — SCA para Java/.NET/Node"
+    [syft]="Generador de SBOM (CycloneDX/SPDX) a partir de sistemas de archivos"
+    [grype]="Escáner de vulnerabilidades basado en SBOM (Anchore)"
+    [osv-scanner]="Escáner de vulnerabilidades usando OSV.dev database"
 )
 
 # Alternative binary name (if different from tool key)
@@ -249,6 +288,19 @@ declare -A TOOL_BIN=(
     [python-docx]="python3"
     [snyk]="snyk"
     [yq]="yq"
+
+    # Phase 5: SAST
+    [semgrep]="semgrep"
+    [trufflehog]="trufflehog"
+    [gitleaks]="gitleaks"
+    [bandit]="bandit"
+
+    # Phase 6: SCA + SBOM
+    [trivy]="trivy"
+    [dependency-check]="dependency-check"
+    [syft]="syft"
+    [grype]="grype"
+    [osv-scanner]="osv-scanner"
 )
 
 # Installation method: apt|pip|npm|snap|cargo|go|repo (default: apt)
@@ -329,6 +381,19 @@ declare -A TOOL_METHOD=(
     [duplicity]="apt"
     [borg]="apt"
     [dcfldd]="apt"
+
+    # Phase 5: SAST
+    [semgrep]="pip"
+    [trufflehog]="pip"
+    [gitleaks]="go"
+    [bandit]="pip"
+
+    # Phase 6: SCA + SBOM
+    [trivy]="gh_release"
+    [dependency-check]="pip"
+    [syft]="curl"
+    [grype]="curl"
+    [osv-scanner]="go"
 )
 
 # Dependencies: tools that must be installed first (array per tool)
@@ -341,6 +406,19 @@ declare -A TOOL_DEPS=(
     [peepdf]="python3"
     [python-docx]="python3"
     [yq]="snap"
+
+    # Phase 5: SAST
+    [semgrep]="python3"
+    [trufflehog]="python3"
+    [gitleaks]="go"
+    [bandit]="python3"
+
+    # Phase 6: SCA + SBOM
+    [trivy]="curl"
+    [dependency-check]="default-jre"
+    [syft]="curl"
+    [grype]="curl"
+    [osv-scanner]="go"
 )
 
 # --- Helper functions ---
@@ -408,7 +486,7 @@ phase_tool_count() {
 }
 
 # All phase names
-ALL_PHASES=("Assessment" "Malware Analysis" "Brand Protection" "Incident Response")
+ALL_PHASES=("Assessment" "Malware Analysis" "Brand Protection" "Incident Response" "SAST" "SCA + SBOM")
 
 # Print tool count per phase
 phase_summary() {

@@ -486,6 +486,15 @@ tool_version() {
         python3)       ver=$(python3 --version 2>/dev/null | grep -oP '[\d\.]+' | head -1) ;;
         node)          ver=$(node --version 2>/dev/null | sed 's/v//') ;;
         docker)        ver=$(docker --version 2>/dev/null | grep -oP '[\d\.]+' | head -1) ;;
+        semgrep)       ver=$(semgrep --version 2>/dev/null | head -1) ;;
+        trufflehog)    ver=$(trufflehog --version 2>/dev/null | grep -oP '[\d\.]+' | head -1) ;;
+        gitleaks)      ver=$(gitleaks version 2>/dev/null | grep -oP '[\d\.]+' | head -1) ;;
+        bandit)        ver=$(bandit --version 2>/dev/null | head -1 | awk '{print $2}') ;;
+        trivy)         ver=$(trivy --version 2>/dev/null | head -1 | grep -oP '[\d\.]+' | head -1) ;;
+        syft)          ver=$(syft --version 2>/dev/null | grep -oP '[\d\.]+' | head -1) ;;
+        grype)         ver=$(grype --version 2>/dev/null | grep -oP '[\d\.]+' | head -1) ;;
+        osv-scanner)   ver=$(osv-scanner --version 2>/dev/null | head -1 | grep -oP '[\d\.]+' | head -1) ;;
+        dependency-check) ver=$(dependency-check --version 2>/dev/null | head -1 | grep -oP '[\d\.]+' | head -1) ;;
         *)             ver=$($tool --version 2>/dev/null | head -1) ;;
     esac
     [[ -z "$ver" ]] && ver=$($tool -v 2>/dev/null | head -1)

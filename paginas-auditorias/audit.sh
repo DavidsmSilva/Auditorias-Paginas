@@ -160,6 +160,12 @@ install_core_deps() {
         "libpcap-dev"
         "libssl-dev"
         "libffi-dev"
+        # WeasyPrint — HTML to PDF conversion (reporte PDF seguro)
+        "libpango-1.0-0"
+        "libharfbuzz0b"
+        "libpangoft2-1.0-0"
+        "libcairo2"
+        "libgdk-pixbuf2.0-0"
     )
 
     local to_install=()
@@ -220,6 +226,21 @@ install_core_deps() {
         fi
     fi
 
+    # Install weasyprint for professional PDF report generation (HTML → PDF)
+    info "Verificando weasyprint para reportes PDF..."
+    if python3 -c "import weasyprint" 2>/dev/null; then
+        log_info "weasyprint ya disponible."
+    else
+        log_info "Instalando weasyprint vía pip..."
+        if cmd_exists pip3; then
+            sudo_exec pip3 install --quiet weasyprint 2>&1 | log_debug && \
+                log_ok "weasyprint instalado correctamente." || \
+                log_warn "No se pudo instalar weasyprint — los reportes PDF se saltarán."
+        else
+            log_warn "pip3 no disponible — no se puede instalar weasyprint"
+        fi
+    fi
+
     log_ok "Dependencias base listas"
 }
 
@@ -233,6 +254,8 @@ load_modules() {
         "${SCRIPT_DIR}/modules/02-malware.sh"
         "${SCRIPT_DIR}/modules/03-brand-protection.sh"
         "${SCRIPT_DIR}/modules/04-incident-response.sh"
+        "${SCRIPT_DIR}/modules/05-sast.sh"
+        "${SCRIPT_DIR}/modules/06-sca-sbom.sh"
     )
 
     for mod in "${modules[@]}"; do
@@ -284,8 +307,10 @@ main_menu() {
             "2" "Fase 2: Malware Analysis — Dependencias, webshells, integridad..."
             "3" "Fase 3: Brand Protection — Typosquatting, fugas, reputación..."
             "4" "Fase 4: Incident Response — Forense, tráfico, backups..."
+            "5" "Fase 5: SAST — Semgrep, TruffleHog, Gitleaks, Bandit..."
+            "6" "Fase 6: SCA + SBOM — Trivy, Dep-Check, Syft, Grype, OSV..."
             "─" "────────────────────────────────────────────────────────────"
-            "I" "⚠  INSTALAR TODO — Las 4 fases completas"
+            "I" "⚠  INSTALAR TODO — Las 6 fases completas"
             "V" "✓  Verificar instalación y generar reporte"
             "S" "📋  Mostrar resumen de herramientas"
             "H" "📖  Ayuda y documentación"
@@ -313,6 +338,12 @@ main_menu() {
                 ;;
             "4")
                 incident_menu
+                ;;
+            "5")
+                sast_menu
+                ;;
+            "6")
+                sca_menu
                 ;;
             "I"|"i")
                 install_everything
@@ -344,8 +375,8 @@ install_everything() {
     __echo "${FG_RED}${BLD}"  "  ║     INSTALACIÓN COMPLETA — TODAS LAS FASES                   ║"
     __echo "${FG_RED}${BLD}"  "  ╚══════════════════════════════════════════════════════════════╝"
     echo ""
-    warn "Esto instalará TODAS las herramientas de las 4 fases."
-    warn "Tiempo estimado: 15-30 minutos (dependiendo de la conexión)"
+    warn "Esto instalará TODAS las herramientas de las 6 fases."
+    warn "Tiempo estimado: 20-40 minutos (dependiendo de la conexión)"
     echo ""
 
     if ! ui_confirm "Instalación Completa" "¿Está seguro de instalar todo el toolkit?"; then
@@ -373,6 +404,14 @@ install_everything() {
     incident_install_all
     echo ""
 
+    # Phase 5
+    sast_install_all
+    echo ""
+
+    # Phase 6
+    sca_install_all
+    echo ""
+
     local end_time
     end_time=$(date +%s)
     local duration=$(( end_time - start_time ))
@@ -392,7 +431,7 @@ install_everything() {
     echo ""
     __echo "${FG_BGRN}${BLD}"  "  ┌──────────────────────────────────────────────────────────────┐"
     __echo "${FG_BGRN}${BLD}"  "  │  ✅  INSTALACIÓN COMPLETA                                   │"
-    __echo "${FG_BGRN}${BLD}"  "  │  Las 4 fases han sido instaladas.                           │"
+    __echo "${FG_BGRN}${BLD}"  "  │  Las 6 fases han sido instaladas.                           │"
     __echo "${FG_BGRN}${BLD}"  "  │  Use la opción 'Verificar' para generar el reporte.         │"
     __echo "${FG_BGRN}${BLD}"  "  └──────────────────────────────────────────────────────────────┘"
     echo ""
@@ -408,7 +447,7 @@ run_verification() {
     info "Iniciando verificación de todas las herramientas instaladas..."
     verify_reset
 
-    local phases=("Assessment" "Malware Analysis" "Brand Protection" "Incident Response")
+    local phases=("Assessment" "Malware Analysis" "Brand Protection" "Incident Response" "SAST" "SCA + SBOM")
     for phase in "${phases[@]}"; do
         log_info "Verificando fase: ${phase}"
         local tools
@@ -441,7 +480,7 @@ show_tool_summary() {
     __echo "${COLOR_HEADER}" "  ╚══════════════════════════════════════════════════════════════╝"
     echo ""
 
-    local all_phases=("Assessment" "Malware Analysis" "Brand Protection" "Incident Response")
+    local all_phases=("Assessment" "Malware Analysis" "Brand Protection" "Incident Response" "SAST" "SCA + SBOM")
 
     # First show the summary table
     phase_summary
@@ -477,7 +516,7 @@ show_tool_summary() {
         echo ""
     done
 
-    ui_msg "Resumen de Herramientas" "Resumen mostrado arriba.\n\nTotal: $(phase_tool_count_all) herramientas en 4 fases."
+    ui_msg "Resumen de Herramientas" "Resumen mostrado arriba.\n\nTotal: $(phase_tool_count_all) herramientas en 6 fases."
 }
 
 # ---- Help -----------------------------------------------------------------
@@ -501,8 +540,8 @@ show_help() {
         echo "    --help            Muestra esta ayuda"
         echo "    --version         Muestra la versión"
         echo "    --list-tools      Lista todas las herramientas disponibles"
-        echo "    --install-all     Instala todas las herramientas de las 4 fases"
-        echo "    --install-phase N Instala la fase N (1-4)"
+        echo "    --install-all     Instala todas las herramientas de las 6 fases"
+        echo "    --install-phase N Instala la fase N (1-6)"
         echo "    --install-tool NAME  Instala una herramienta específica"
         echo "    --verify          Verifica las herramientas instaladas"
         echo "    --report          Genera reporte de verificación"
@@ -514,6 +553,8 @@ show_help() {
         echo "    2. Malware Analysis — 16 herramientas de análisis de malware"
         echo "    3. Brand Protection — 11 herramientas de OSINT y marca"
         echo "    4. Incident Response— 19 herramientas de forense y backup"
+        echo "    5. SAST               — 4 herramientas de análisis estático (Semgrep, TruffleHog, Gitleaks, Bandit)"
+        echo "    6. SCA + SBOM         — 5 herramientas de composición y dependencias (Trivy, Dep-Check, Syft, Grype, OSV)"
         echo ""
         echo "  REPORTES GENERADOS:"
         echo "    · TXT  — Reporte texto plano"
@@ -522,11 +563,13 @@ show_help() {
         echo "    · DOCX — Reporte profesional Word (portada, tabla, gráficos)"
         echo ""
         echo "  AUDITORÍA AUTOMÁTICA (--audit)"
-        echo "    Ejecuta las 4 fases contra una URL en una sola corrida:"
+        echo "    Ejecuta las 6 fases contra una URL en una sola corrida:"
         echo "    · Assessment: Nmap + Nikto + WhatWeb + Nuclei + SSL + DNS + Gobuster"
         echo "    · Malware:    YARA + ExifTool + Análisis de cabeceras de seguridad"
         echo "    · Brand:      dnstwist + theHarvester + Sublist3r + HIBP"
         echo "    · IR:         Evaluación de preparación ante incidentes"
+        echo "    · SAST:       Semgrep + TruffleHog + Gitleaks + Bandit"
+        echo "    · SCA+SBOM:   Trivy + Dependency-Check + Syft + Grype + OSV-Scanner"
         echo "    Genera reportes TXT + JSON + HTML interactivo"
         echo ""
         echo "  EJEMPLOS"
@@ -586,7 +629,7 @@ cli_dispatch() {
         --install-phase|-p)
             local phase_num="${2:-}"
             if [[ -z "$phase_num" ]]; then
-                error "Especifique el número de fase (1-4)"
+                error "Especifique el número de fase (1-6)"
                 exit 1
             fi
             pre_flight
@@ -597,7 +640,9 @@ cli_dispatch() {
                 2) malware_install_all ;;
                 3) brand_install_all ;;
                 4) incident_install_all ;;
-                *) error "Fase inválida: ${phase_num}. Use 1-4."; exit 1 ;;
+                5) sast_install_all ;;
+                6) sca_install_all ;;
+                *) error "Fase inválida: ${phase_num}. Use 1-6."; exit 1 ;;
             esac
             exit 0
             ;;
@@ -626,6 +671,8 @@ cli_dispatch() {
                 "Malware Analysis") malware_install_tool "$tool_name" ;;
                 "Brand Protection") brand_install_tool "$tool_name" ;;
                 "Incident Response") incident_install_tool "$tool_name" ;;
+                "SAST") sast_install_tool "$tool_name" ;;
+                "SCA + SBOM") sca_install_tool "$tool_name" ;;
             esac
             exit 0
             ;;

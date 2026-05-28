@@ -290,6 +290,8 @@ class AuditDocxReport:
             ('', '  4.2  Fase 2 — Malware Analysis'),
             ('', '  4.3  Fase 3 — Brand Protection'),
             ('', '  4.4  Fase 4 — Incident Response'),
+            ('', '  4.5  Fase 5 — SAST'),
+            ('', '  4.6  Fase 6 — SCA + SBOM'),
             ('5.', 'Recomendaciones'),
             ('6.', 'Anexos'),
         ]
@@ -323,7 +325,7 @@ class AuditDocxReport:
         p.add_run(
             f'Se realizó una auditoría de seguridad automatizada contra el target '
             f'{self.data["target"].get("url", "N/A")}. '
-            f'Se ejecutaron las 4 fases del pipeline de auditoría, '
+            f'Se ejecutaron las 6 fases del pipeline de auditoría, '
             f'identificando un total de {total} hallazgos '
             f'con un Risk Score de {risk_score} ({risk_label}).'
         )
@@ -419,6 +421,8 @@ class AuditDocxReport:
             'malware': 'Malware Analysis',
             'brand': 'Brand Protection',
             'incident': 'Incident Response',
+            'sast': 'SAST (Static Application Security Testing)',
+            'sca': 'SCA + SBOM (Composición de software y dependencias)',
         }
         total_seconds = sum(timing.get(k, 0) for k in phase_names)
         for phase_key, phase_label in phase_names.items():
@@ -546,6 +550,17 @@ class AuditDocxReport:
              'incluyendo disponibilidad de herramientas forenses, captura de tráfico, '
              'monitoreo de integridad y capacidad de recuperación.',
              'ir'),
+            ('4.5', 'SAST — Static Application Security Testing',
+             'Esta fase incluyó análisis estático de código fuente con Semgrep (reglas OSS), '
+             'detección de secretos hardcodeados con TruffleHog, escaneo de repositorios Git '
+             'con Gitleaks, y análisis de código Python con Bandit.',
+             'sast'),
+            ('4.6', 'SCA + SBOM — Software Composition Analysis',
+             'Esta fase incluyó escaneo de vulnerabilidades en dependencias con Trivy, '
+             'análisis SCA con OWASP Dependency-Check, generación de SBOM en formatos '
+             'CycloneDX y SPDX con Syft, escaneo de vulnerabilidades sobre SBOM con Grype, '
+             'y detección adicional con OSV-Scanner.',
+             'sca'),
         ]
 
         for num, title, desc, _ in phases:
@@ -559,6 +574,8 @@ class AuditDocxReport:
                 '4.2': ['ExifTool', 'YARA', 'Security Headers', 'Pre-flight'],
                 '4.3': ['dnstwist', 'theHarvester', 'Sublist3r', 'HIBP'],
                 '4.4': ['IR Readiness'],
+                '4.5': ['Semgrep', 'TruffleHog', 'Gitleaks', 'Bandit'],
+                '4.6': ['Trivy', 'Dependency-Check', 'Syft', 'Grype', 'OSV-Scanner'],
             }
 
             related = source_map.get(num, [])
@@ -654,6 +671,8 @@ class AuditDocxReport:
             'Brand Protection': ['dnstwist', 'theharvester', 'sublist3r', 'hibp-check'],
             'Incident Response': ['tcpdump', 'tshark', 'volatility', 'sleuthkit',
                                   'aide', 'rsync'],
+            'SAST': ['semgrep', 'trufflehog', 'gitleaks', 'bandit'],
+            'SCA + SBOM': ['trivy', 'dependency-check', 'syft', 'grype', 'osv-scanner'],
         }
 
         for phase, tools in tools_by_phase.items():
@@ -665,8 +684,9 @@ class AuditDocxReport:
         self.doc.add_paragraph()
         add_styled_heading(self.doc, '6.2  Tiempos de Ejecución', level=2)
         timing = self.data.get('timing', {})
-        phases = ['assessment', 'malware', 'brand', 'incident']
-        phase_labels = ['Assessment', 'Malware Analysis', 'Brand Protection', 'Incident Response']
+        phases = ['assessment', 'malware', 'brand', 'incident', 'sast', 'sca']
+        phase_labels = ['Assessment', 'Malware Analysis', 'Brand Protection', 'Incident Response',
+                        'SAST', 'SCA + SBOM']
 
         time_table = self.doc.add_table(rows=len(phases) + 2, cols=2)
         set_cell_text(time_table.rows[0].cells[0], 'Fase', bold=True, size=10)

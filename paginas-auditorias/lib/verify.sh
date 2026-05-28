@@ -60,6 +60,7 @@ __smoke_test() {
         npm)        npm --version &>/dev/null ;;
         python3)    python3 --version &>/dev/null ;;
         python-docx) python3 -c "import docx; print(docx.__version__)" &>/dev/null ;;
+        weasyprint) python3 -c "import weasyprint; print(weasyprint.__version__)" &>/dev/null ;;
         docker)     docker --version &>/dev/null ;;
         curl)       curl --version &>/dev/null ;;
         wget)       wget --version &>/dev/null ;;
@@ -79,6 +80,15 @@ __smoke_test() {
         duplicity)  duplicity --version &>/dev/null ;;
         borg)       borg --version &>/dev/null ;;
         dcfldd)     dcfldd --version &>/dev/null ;;
+        semgrep)    semgrep --version &>/dev/null ;;
+        trufflehog) trufflehog --help &>/dev/null ;;
+        gitleaks)   gitleaks version &>/dev/null ;;
+        bandit)     bandit --version &>/dev/null ;;
+        trivy)      trivy --version &>/dev/null ;;
+        syft)       syft --version &>/dev/null ;;
+        grype)      grype --version &>/dev/null ;;
+        osv-scanner) osv-scanner --version &>/dev/null ;;
+        dependency-check) dependency-check --version &>/dev/null ;;
         *)
             # Generic: just check binary exists
             command -v "$tool" &>/dev/null
@@ -189,7 +199,7 @@ generate_report_txt() {
         echo ""
 
         # Phases
-        local phases=("Assessment" "Malware Analysis" "Brand Protection" "Incident Response")
+        local phases=("Assessment" "Malware Analysis" "Brand Protection" "Incident Response" "SAST" "SCA + SBOM")
         for phase in "${phases[@]}"; do
             read -r p f s t <<< "$(verify_phase_complete "$phase")"
             echo "  FASE: ${phase}"
@@ -243,7 +253,7 @@ generate_report_json() {
     # Group by phase
     json+="\"phases\":{"
     local first_phase=true
-    local phases=("Assessment" "Malware Analysis" "Brand Protection" "Incident Response")
+    local phases=("Assessment" "Malware Analysis" "Brand Protection" "Incident Response" "SAST" "SCA + SBOM")
     for phase in "${phases[@]}"; do
         $first_phase || json+=","
         first_phase=false
@@ -301,7 +311,7 @@ summary() {
     __echo "${COLOR_HEADER}" "  │ Fase         │ Total│ ✓ OK │ ✗ Fail│ - Skip   │"
     __echo "${COLOR_HEADER}" "  ├──────────────┼──────┼──────┼──────┼──────────┤"
 
-    local phases=("Assessment" "Malware Analysis" "Brand Protection" "Incident Response")
+    local phases=("Assessment" "Malware Analysis" "Brand Protection" "Incident Response" "SAST" "SCA + SBOM")
     local g_total=0 g_pass=0 g_fail=0 g_skip=0
     for phase in "${phases[@]}"; do
         read -r p f s t <<< "$(verify_phase_complete "$phase")"
@@ -316,6 +326,8 @@ summary() {
             "Malware Analysis") phase_short="Malware An." ;;
             "Brand Protection") phase_short="Brand Prot." ;;
             "Incident Response") phase_short="Incident Resp." ;;
+            "SAST") phase_short="SAST" ;;
+            "SCA + SBOM") phase_short="SCA+SBOM" ;;
         esac
         __echo "${COLOR_ACCENT2}" "  │ $(printf '%-12s' "$phase_short")│  $(printf '%3d' "$t")  │  $(printf '%3d' "$p")  │   $(printf '%3d' "$f")  │    $(printf '%3d' "$s")  │"
     done

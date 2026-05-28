@@ -2,11 +2,13 @@
 # ============================================================================
 # 00-automated-audit.sh — Pipeline de Auditoría Automática
 # ============================================================================
-# Toma una URL y ejecuta las 4 fases de auditoría automáticamente:
+# Toma una URL y ejecuta las 6 fases de auditoría automáticamente:
 #   Fase 1: Assessment (Nmap, Nikto, WhatWeb, Nuclei, SSL, DNS, fuzzing)
 #   Fase 2: Malware Analysis (YARA, exiftool, análisis de recursos)
 #   Fase 3: Brand Protection (dnstwist, theHarvester, sublist3r)
 #   Fase 4: IR Readiness Checklist
+#   Fase 5: SAST (Semgrep, TruffleHog, Gitleaks, Bandit)
+#   Fase 6: SCA + SBOM (Trivy, Dep-Check, Syft, Grype, OSV-Scanner)
 #
 # Genera reporte consolidado en TXT + JSON + HTML interactivo.
 # ============================================================================
@@ -222,6 +224,9 @@ audit_pre_flight() {
     mkdir -p "${AUDIT_DIR}/scans/dns"
     mkdir -p "${AUDIT_DIR}/osint"
     mkdir -p "${AUDIT_DIR}/malware"
+    mkdir -p "${AUDIT_DIR}/scans/sast"
+    mkdir -p "${AUDIT_DIR}/scans/sca"
+    mkdir -p "${AUDIT_DIR}/sbom"
     mkdir -p "${AUDIT_DIR}/resources"
     mkdir -p "${AUDIT_DIR}/reports"
 
@@ -884,6 +889,363 @@ audit_incident() {
     log_ok "IR Readiness completado en $(( AUDIT_TIMING[incident] / 60 ))m $(( AUDIT_TIMING[incident] % 60 ))s"
 }
 
+# ---- Phase 5: SAST ----------------------------------------------------------
+
+audit_sast() {
+    log_section "FASE 5: SAST — STATIC APPLICATION SECURITY TESTING"
+    local start_time
+    start_time=$(date +%s)
+
+    local domain="${AUDIT_TARGET[domain]}"
+    local url="${AUDIT_TARGET[url]}"
+
+    # ----- 5.1 Semgrep — Multi-language SAST scanning -----
+    info "[1/4] Semgrep — Escaneo SAST multi-lenguaje..."
+    if cmd_exists semgrep; then
+        # Try to scan downloaded resources first, fallback to URL
+        local semgrep_target="${AUDIT_DIR}/resources"
+        if [[ -d "$semgrep_target" ]] && [[ "$(find "$semgrep_target" -type f 2>/dev/null | wc -l)" -gt 0 ]]; then
+            timed_run 300 semgrep --quiet --metrics=off --config=auto \
+                "$semgrep_target" 2>/dev/null \
+                > "${AUDIT_DIR}/scans/sast/semgrep-results.txt" || true
+        else
+            # Scan from URL: download page source and scan
+            timed_run 60 curl -sL --max-time 30 "$url" 2>/dev/null \
+                > "${AUDIT_DIR}/scans/sast/page-source.html" || true
+            if [[ -s "${AUDIT_DIR}/scans/sast/page-source.html" ]]; then
+                timed_run 300 semgrep --quiet --metrics=off --config=auto \
+                    "${AUDIT_DIR}/scans/sast/page-source.html" 2>/dev/null \
+                    > "${AUDIT_DIR}/scans/sast/semgrep-results.txt" || true
+            fi
+        fi
+        if [[ -s "${AUDIT_DIR}/scans/sast/semgrep-results.txt" ]]; then
+            local findings_count
+            findings_count=$(grep -c "finding:" "${AUDIT_DIR}/scans/sast/semgrep-results.txt" 2>/dev/null || echo "0")
+            if [[ "$findings_count" -gt 0 ]]; then
+                add_finding "MEDIUM" "Semgrep" "Semgrep detectó ${findings_count} hallazgos SAST" \
+                    "Semgrep (configuración automática) encontró ${findings_count} posibles vulnerabilidades en los recursos escaneados." \
+                    "Revise ${AUDIT_DIR}/scans/sast/semgrep-results.txt y corrija los hallazgos según prioridad." \
+                    "Resultados en: scans/sast/semgrep-results.txt"
+            else
+                add_finding "INFO" "Semgrep" "Semgrep completado: sin hallazgos críticos" \
+                    "El escaneo SAST con Semgrep no detectó vulnerabilidades significativas." \
+                    "Monitoreo continuo recomendado."
+            fi
+        else
+            add_finding "INFO" "Semgrep" "Semgrep ejecutado sin resultados" \
+                "El escaneo SAST con Semgrep no produjo resultados (puede no haber código fuente disponible)." \
+                "Para un análisis completo, ejecute Semgrep directamente sobre el repositorio."
+        fi
+    else
+        add_finding "INFO" "Semgrep" "Semgrep no instalado — escaneo SAST omitido" \
+            "Semgrep no está disponible en este sistema." \
+            "Instale Semgrep: pip install semgrep"
+    fi
+    echo ""
+
+    # ----- 5.2 TruffleHog — Secret scanning -----
+    info "[2/4] TruffleHog — Buscando secretos..."
+    if cmd_exists trufflehog; then
+        # TruffleHog filesystem scan on downloaded resources
+        if [[ -d "${AUDIT_DIR}/resources" ]] && [[ "$(find "${AUDIT_DIR}/resources" -type f 2>/dev/null | wc -l)" -gt 0 ]]; then
+            timed_run 180 trufflehog filesystem --no-verification \
+                "${AUDIT_DIR}/resources" 2>/dev/null \
+                > "${AUDIT_DIR}/scans/sast/trufflehog-results.txt" || true
+            if [[ -s "${AUDIT_DIR}/scans/sast/trufflehog-results.txt" ]]; then
+                local secret_count
+                secret_count=$(wc -l < "${AUDIT_DIR}/scans/sast/trufflehog-results.txt")
+                add_finding "HIGH" "TruffleHog" "Posibles secretos detectados en recursos (${secret_count} hallazgos)" \
+                    "TruffleHog encontró ${secret_count} posibles secretos/credenciales en los recursos descargados." \
+                    "Revise cada hallazgo en ${AUDIT_DIR}/scans/sast/trufflehog-results.txt y rote credenciales reales." \
+                    "Resultados en: scans/sast/trufflehog-results.txt"
+            else
+                add_finding "INFO" "TruffleHog" "TruffleHog completado: sin secretos detectados" \
+                    "No se encontraron secretos hardcodeados en los recursos analizados." \
+                    "Continúe monitoreando con escaneos periódicos."
+            fi
+        else
+            add_finding "INFO" "TruffleHog" "TruffleHog: sin recursos para escanear" \
+                "No hay recursos descargados para escanear en busca de secretos." \
+                "Ejecute TruffleHog directamente sobre el repositorio para un análisis completo."
+        fi
+    else
+        add_finding "INFO" "TruffleHog" "TruffleHog no instalado — escaneo de secretos omitido" \
+            "TruffleHog no está disponible en este sistema." \
+            "Instale TruffleHog: pip install trufflehog"
+    fi
+    echo ""
+
+    # ----- 5.3 Gitleaks — Git secret scanning -----
+    info "[3/4] Gitleaks — Buscando secretos en repositorios Git..."
+    if cmd_exists gitleaks; then
+        # Check if there's a git repo in resources
+        if [[ -d "${AUDIT_DIR}/resources/.git" ]]; then
+            timed_run 180 gitleaks detect --source="${AUDIT_DIR}/resources" \
+                --no-git --verbose 2>/dev/null \
+                > "${AUDIT_DIR}/scans/sast/gitleaks-results.txt" || true
+            if [[ -s "${AUDIT_DIR}/scans/sast/gitleaks-results.txt" ]]; then
+                local leak_count
+                leak_count=$(grep -c "Leak:" "${AUDIT_DIR}/scans/sast/gitleaks-results.txt" 2>/dev/null || echo "0")
+                add_finding "HIGH" "Gitleaks" "Posibles fugas de credenciales en repositorio Git" \
+                    "Gitleaks detectó posibles credenciales hardcodeadas en el repositorio Git." \
+                    "Revise ${AUDIT_DIR}/scans/sast/gitleaks-results.txt y elimine secretos del historial Git."
+            else
+                add_finding "INFO" "Gitleaks" "Gitleaks completado: sin fugas detectadas" \
+                    "No se encontraron secretos en el historial Git analizado." \
+                    "Mantenga Gitleaks en su pipeline CI/CD."
+            fi
+        else
+            add_finding "INFO" "Gitleaks" "Gitleaks: sin repositorio Git para escanear" \
+                "No se detectó un repositorio Git en los recursos descargados." \
+                "Ejecute Gitleaks directamente sobre el repositorio."
+        fi
+    else
+        add_finding "INFO" "Gitleaks" "Gitleaks no instalado — escaneo Git omitido" \
+            "Gitleaks no está disponible en este sistema." \
+            "Instale Gitleaks: go install github.com/gitleaks/gitleaks/v8@latest"
+    fi
+    echo ""
+
+    # ----- 5.4 Bandit — Python SAST -----
+    info "[4/4] Bandit — Analizando código Python..."
+    if cmd_exists bandit; then
+        local py_files
+        py_files=$(find "${AUDIT_DIR}/resources" -name "*.py" -type f 2>/dev/null | head -20)
+        if [[ -n "$py_files" ]]; then
+            timed_run 120 bandit -r -q -f json \
+                "${AUDIT_DIR}/resources" 2>/dev/null \
+                > "${AUDIT_DIR}/scans/sast/bandit-results.json" || true
+            if [[ -s "${AUDIT_DIR}/scans/sast/bandit-results.json" ]]; then
+                local bandit_count
+                bandit_count=$(python3 -c "import json; d=json.load(open('${AUDIT_DIR}/scans/sast/bandit-results.json')); print(len(d.get('results',[])))" 2>/dev/null || echo "0")
+                if [[ "$bandit_count" -gt 0 ]]; then
+                    add_finding "MEDIUM" "Bandit" "Bandit detectó ${bandit_count} problemas de seguridad en código Python" \
+                        "Bandit encontró ${bandit_count} posibles vulnerabilidades en archivos Python." \
+                        "Revise ${AUDIT_DIR}/scans/sast/bandit-results.json y corrija según severidad." \
+                        "Resultados en: scans/sast/bandit-results.json"
+                else
+                    add_finding "INFO" "Bandit" "Bandit completado: código Python sin problemas" \
+                        "El análisis SAST de código Python no encontró vulnerabilidades." \
+                        "Mantenga Bandit en su pipeline CI/CD."
+                fi
+            fi
+        else
+            add_finding "INFO" "Bandit" "Bandit: sin archivos Python para analizar" \
+                "No se encontraron archivos .py en los recursos descargados." \
+                "Ejecute Bandit directamente sobre el repositorio si contiene código Python."
+        fi
+    else
+        add_finding "INFO" "Bandit" "Bandit no instalado — análisis Python omitido" \
+            "Bandit no está disponible en este sistema." \
+            "Instale Bandit: pip install bandit"
+    fi
+    echo ""
+
+    local end_time
+    end_time=$(date +%s)
+    AUDIT_TIMING[sast]=$(( end_time - start_time ))
+    log_ok "SAST completado en $(( AUDIT_TIMING[sast] / 60 ))m $(( AUDIT_TIMING[sast] % 60 ))s"
+}
+
+# ---- Phase 6: SCA + SBOM ----------------------------------------------------
+
+audit_sca() {
+    log_section "FASE 6: SCA + SBOM — DEPENDENCY & SUPPLY CHAIN SECURITY"
+    local start_time
+    start_time=$(date +%s)
+
+    local domain="${AUDIT_TARGET[domain]}"
+    local url="${AUDIT_TARGET[url]}"
+
+    # ----- 6.1 Trivy — Filesystem vulnerability scan -----
+    info "[1/5] Trivy — Escaneo de vulnerabilidades..."
+    if cmd_exists trivy; then
+        local trivy_target="${AUDIT_DIR}/resources"
+        if [[ -d "$trivy_target" ]] && [[ "$(find "$trivy_target" -type f 2>/dev/null | wc -l)" -gt 0 ]]; then
+            timed_run 300 trivy fs --quiet --sca=true \
+                --severity CRITICAL,HIGH,MEDIUM \
+                "$trivy_target" 2>/dev/null \
+                > "${AUDIT_DIR}/scans/sca/trivy-fs-results.txt" || true
+            if [[ -s "${AUDIT_DIR}/scans/sca/trivy-fs-results.txt" ]]; then
+                local trivy_count
+                trivy_count=$(grep -c "Total:" "${AUDIT_DIR}/scans/sca/trivy-fs-results.txt" 2>/dev/null || echo "0")
+                add_finding "MEDIUM" "Trivy" "Trivy detectó vulnerabilidades en el sistema de archivos" \
+                    "Trivy escaneó los recursos descargados y encontró vulnerabilidades en dependencias." \
+                    "Revise ${AUDIT_DIR}/scans/sca/trivy-fs-results.txt y actualice las dependencias afectadas." \
+                    "Resultados en: scans/sca/trivy-fs-results.txt"
+            else
+                add_finding "INFO" "Trivy" "Trivy completado: sin vulnerabilidades detectadas" \
+                    "No se encontraron vulnerabilidades conocidas en los recursos analizados." \
+                    "Mantenga escaneos periódicos con la base de datos actualizada."
+            fi
+        else
+            add_finding "INFO" "Trivy" "Trivy: sin recursos para escanear" \
+                "No hay recursos descargados para análisis SCA." \
+                "Ejecute Trivy directamente sobre el proyecto con: trivy fs /ruta/al/proyecto"
+        fi
+    else
+        add_finding "INFO" "Trivy" "Trivy no instalado — escaneo SCA omitido" \
+            "Trivy no está disponible en este sistema." \
+            "Instale Trivy siguiendo la guía oficial."
+    fi
+    echo ""
+
+    # ----- 6.2 OWASP Dependency-Check -----
+    info "[2/5] OWASP Dependency-Check — Análisis de dependencias..."
+    if cmd_exists dependency-check && cmd_exists java; then
+        if [[ -d "${AUDIT_DIR}/resources" ]]; then
+            timed_run 300 dependency-check --scan "${AUDIT_DIR}/resources" \
+                --format JSON --out "${AUDIT_DIR}/scans/sca/" \
+                2>/dev/null || true
+            local depcheck_file="${AUDIT_DIR}/scans/sca/dependency-check-report.json"
+            if [[ -s "$depcheck_file" ]]; then
+                local dep_count
+                dep_count=$(python3 -c "
+import json
+try:
+    with open('${depcheck_file}') as f:
+        d = json.load(f)
+    print(len(d.get('dependencies', [])))
+except:
+    print('0')
+" 2>/dev/null || echo "0")
+                add_finding "MEDIUM" "Dependency-Check" "OWASP Dependency-Check analizó ${dep_count} dependencias" \
+                    "Se identificaron dependencias con posibles vulnerabilidades conocidas." \
+                    "Revise el reporte en ${AUDIT_DIR}/scans/sca/ y actualice las librerías vulnerables." \
+                    "Reporte en: scans/sca/dependency-check-report.json"
+            fi
+        fi
+    else
+        add_finding "INFO" "Dependency-Check" "Dependency-Check no disponible — requiere Java" \
+            "OWASP Dependency-Check no está instalado o Java no está disponible." \
+            "Instale: pip install dependency-check && sudo apt install default-jre"
+    fi
+    echo ""
+
+    # ----- 6.3 Syft — SBOM Generation -----
+    info "[3/5] Syft — Generando SBOM (CycloneDX + SPDX)..."
+    if cmd_exists syft; then
+        if [[ -d "${AUDIT_DIR}/resources" ]] && [[ "$(find "${AUDIT_DIR}/resources" -type f 2>/dev/null | wc -l)" -gt 0 ]]; then
+            # CycloneDX format
+            timed_run 120 syft "${AUDIT_DIR}/resources" -o cyclonedx-json \
+                > "${AUDIT_DIR}/sbom/sbom-cyclonedx.json" 2>/dev/null || true
+            # SPDX format
+            timed_run 120 syft "${AUDIT_DIR}/resources" -o spdx-json \
+                > "${AUDIT_DIR}/sbom/sbom-spdx.json" 2>/dev/null || true
+
+            if [[ -s "${AUDIT_DIR}/sbom/sbom-cyclonedx.json" ]]; then
+                local pkg_count
+                pkg_count=$(python3 -c "
+import json
+try:
+    with open('${AUDIT_DIR}/sbom/sbom-cyclonedx.json') as f:
+        d = json.load(f)
+    print(len(d.get('components', [])))
+except:
+    print('0')
+" 2>/dev/null || echo "0")
+                add_finding "INFO" "Syft" "SBOM generado (CycloneDX + SPDX) — ${pkg_count} componentes" \
+                    "Se generó el SBOM en formatos CycloneDX y SPDX con ${pkg_count} componentes identificados." \
+                    "Use estos SBOM para tracking de dependencias y escaneo con Grype." \
+                    "SBOMs en: sbom/sbom-cyclonedx.json, sbom/sbom-spdx.json"
+            fi
+        else
+            add_finding "INFO" "Syft" "Syft: sin recursos para generar SBOM" \
+                "No hay recursos descargados para generar el SBOM." \
+                "Ejecute Syft directamente sobre el proyecto."
+        fi
+    else
+        add_finding "INFO" "Syft" "Syft no instalado — generación de SBOM omitida" \
+            "Syft no está disponible en este sistema." \
+            "Instale Syft: curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin"
+    fi
+    echo ""
+
+    # ----- 6.4 Grype — Vulnerability scan on SBOM -----
+    info "[4/5] Grype — Escaneo de vulnerabilidades sobre SBOM..."
+    if cmd_exists grype; then
+        if [[ -s "${AUDIT_DIR}/sbom/sbom-cyclonedx.json" ]]; then
+            timed_run 180 grype "${AUDIT_DIR}/sbom/sbom-cyclonedx.json" \
+                -o json 2>/dev/null \
+                > "${AUDIT_DIR}/scans/sca/grype-results.json" || true
+            if [[ -s "${AUDIT_DIR}/scans/sca/grype-results.json" ]]; then
+                local grype_count
+                grype_count=$(python3 -c "
+import json
+try:
+    with open('${AUDIT_DIR}/scans/sca/grype-results.json') as f:
+        d = json.load(f)
+    print(len(d.get('matches', [])))
+except:
+    print('0')
+" 2>/dev/null || echo "0")
+                if [[ "$grype_count" -gt 0 ]]; then
+                    add_finding "HIGH" "Grype" "Grype detectó ${grype_count} vulnerabilidades en dependencias (desde SBOM)" \
+                        "Escaneo sobre SBOM encontró ${grype_count} vulnerabilidades en las dependencias identificadas." \
+                        "Revise ${AUDIT_DIR}/scans/sca/grype-results.json y remédielas según severidad." \
+                        "Resultados en: scans/sca/grype-results.json"
+                else
+                    add_finding "INFO" "Grype" "Grype completado: sin vulnerabilidades en SBOM" \
+                        "No se encontraron vulnerabilidades conocidas en las dependencias del SBOM." \
+                        "Mantenga escaneos periódicos."
+                fi
+            fi
+        else
+            add_finding "INFO" "Grype" "Grype: sin SBOM para escanear" \
+                "No hay SBOM disponible. Ejecute Syft primero para generar el SBOM." \
+                "Pipeline recomendado: syft → grype"
+        fi
+    else
+        add_finding "INFO" "Grype" "Grype no instalado — escaneo SBOM omitido" \
+            "Grype no está disponible en este sistema." \
+            "Instale Grype: curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin"
+    fi
+    echo ""
+
+    # ----- 6.5 OSV-Scanner -----
+    info "[5/5] OSV-Scanner — Escaneo adicional con base OSV.dev..."
+    if cmd_exists osv-scanner; then
+        if [[ -s "${AUDIT_DIR}/sbom/sbom-cyclonedx.json" ]]; then
+            timed_run 120 osv-scanner --sbom="${AUDIT_DIR}/sbom/sbom-cyclonedx.json" \
+                --format json 2>/dev/null \
+                > "${AUDIT_DIR}/scans/sca/osv-scanner-results.json" || true
+            if [[ -s "${AUDIT_DIR}/scans/sca/osv-scanner-results.json" ]]; then
+                local osv_count
+                osv_count=$(python3 -c "
+import json
+try:
+    with open('${AUDIT_DIR}/scans/sca/osv-scanner-results.json') as f:
+        d = json.load(f)
+    print(len(d.get('results', [])))
+except:
+    print('0')
+" 2>/dev/null || echo "0")
+                add_finding "MEDIUM" "OSV-Scanner" "OSV-Scanner reportó resultados de vulnerabilidades" \
+                    "Escaneo adicional con la base OSV.dev encontró resultados para las dependencias." \
+                    "Revise ${AUDIT_DIR}/scans/sca/osv-scanner-results.json para más detalles." \
+                    "Resultados en: scans/sca/osv-scanner-results.json"
+            fi
+        else
+            # Try recursive directory scan
+            if [[ -d "${AUDIT_DIR}/resources" ]]; then
+                timed_run 120 osv-scanner -r "${AUDIT_DIR}/resources" \
+                    --format json 2>/dev/null \
+                    > "${AUDIT_DIR}/scans/sca/osv-scanner-results.json" || true
+            fi
+        fi
+    else
+        add_finding "INFO" "OSV-Scanner" "OSV-Scanner no instalado — escaneo omitido" \
+            "OSV-Scanner no está disponible en este sistema." \
+            "Instale: go install github.com/google/osv-scanner/cmd/osv-scanner@latest"
+    fi
+    echo ""
+
+    local end_time
+    end_time=$(date +%s)
+    AUDIT_TIMING[sca]=$(( end_time - start_time ))
+    log_ok "SCA + SBOM completado en $(( AUDIT_TIMING[sca] / 60 ))m $(( AUDIT_TIMING[sca] % 60 ))s"
+}
+
 # ---- Report Generator ----------------------------------------------------
 
 audit_generate_report_txt() {
@@ -985,7 +1347,7 @@ audit_generate_report_txt() {
         echo "  5. TIEMPOS DE EJECUCIÓN"
         echo "═══════════════════════════════════════════════════════════════"
         echo ""
-        for phase in assessment malware brand incident; do
+        for phase in assessment malware brand incident sast sca; do
             local secs=${AUDIT_TIMING[$phase]:-0}
             printf "  %-20s %2dm %2ds\n" "${phase}:" $(( secs / 60 )) $(( secs % 60 ))
         done
@@ -1046,7 +1408,7 @@ audit_generate_report_json() {
 
     json+="\"timing\":{"
     local first_phase=true
-    for phase in assessment malware brand incident; do
+    for phase in assessment malware brand incident sast sca; do
         $first_phase || json+=","
         first_phase=false
         json+="\"${phase}\":${AUDIT_TIMING[$phase]:-0}"
@@ -1228,6 +1590,8 @@ ${js}
       <span class="meta-key">Malware Analysis:</span><span>$(( ${AUDIT_TIMING[malware]:-0} / 60 ))m $(( ${AUDIT_TIMING[malware]:-0} % 60 ))s</span>
       <span class="meta-key">Brand Protection:</span><span>$(( ${AUDIT_TIMING[brand]:-0} / 60 ))m $(( ${AUDIT_TIMING[brand]:-0} % 60 ))s</span>
       <span class="meta-key">Incident Response:</span><span>$(( ${AUDIT_TIMING[incident]:-0} / 60 ))m $(( ${AUDIT_TIMING[incident]:-0} % 60 ))s</span>
+      <span class="meta-key">SAST:</span><span>$(( ${AUDIT_TIMING[sast]:-0} / 60 ))m $(( ${AUDIT_TIMING[sast]:-0} % 60 ))s</span>
+      <span class="meta-key">SCA+SBOM:</span><span>$(( ${AUDIT_TIMING[sca]:-0} / 60 ))m $(( ${AUDIT_TIMING[sca]:-0} % 60 ))s</span>
       <span class="meta-key">Total:</span><span>$(( ( $(date +%s) - AUDIT_START_TIME ) / 60 ))m</span>
     </div>
   </div>
@@ -1295,6 +1659,51 @@ audit_generate_report_docx() {
     fi
 }
 
+# ---- PDF Report Generator (HTML → PDF con WeasyPrint) ---------------------
+
+audit_generate_report_pdf() {
+    local html_file="${AUDIT_DIR}/reports/audit-report.html"
+    local pdf_file="${AUDIT_DIR}/reports/audit-report.pdf"
+
+    log_info "Generando reporte PDF profesional..."
+
+    # Check prerequisites
+    if ! python3 -c "import weasyprint" 2>/dev/null; then
+        log_warn "weasyprint no instalado — reporte PDF no generado (ejecute '--install-all' o 'pip3 install weasyprint')"
+        return 1
+    fi
+
+    if [[ ! -f "$html_file" ]]; then
+        log_warn "Reporte HTML no encontrado en ${html_file}"
+        return 1
+    fi
+
+    # Generate PDF from HTML
+    log_info "Convirtiendo HTML a PDF con WeasyPrint..."
+    python3 -c "
+import weasyprint, sys
+try:
+    weasyprint.HTML(filename='${html_file}').write_pdf('${pdf_file}')
+    print('OK')
+except Exception as e:
+    print(f'ERROR: {e}')
+    sys.exit(1)
+" 2>&1 | while IFS= read -r line; do
+        log_debug "[pdf] ${line}"
+    done
+
+    local rc=${PIPESTATUS[0]}
+
+    if [[ $rc -eq 0 && -f "$pdf_file" ]]; then
+        log_ok "Reporte PDF generado: ${pdf_file}"
+        echo "$pdf_file"
+        return 0
+    else
+        log_warn "Falló generación de reporte PDF (exit: ${rc})"
+        return 1
+    fi
+}
+
 # ---- Main Orchestrator ----------------------------------------------------
 
 # audit_url <url> [output_dir]
@@ -1337,11 +1746,13 @@ audit_url() {
     fi
 
     # 3. Run phases
-    local phases=("assessment" "malware" "brand" "incident")
+    local phases=("assessment" "malware" "brand" "incident" "sast" "sca")
     local phase_names=("Assessment: Escaneo activo (Nmap, Nikto, Nuclei...)" 
                        "Malware: Análisis de dependencias e integridad"
                        "Brand Protection: OSINT y typosquatting"
-                       "IR Readiness: Preparación ante incidentes")
+                       "IR Readiness: Preparación ante incidentes"
+                       "SAST: Análisis estático de código (Semgrep, TruffleHog...)"
+                       "SCA + SBOM: Composición y dependencias (Trivy, Syft, Grype...)")
 
     # Use dialog gauge if available
     local phase_count=${#phases[@]}
@@ -1363,6 +1774,8 @@ audit_url() {
             malware)    audit_malware ;;
             brand)      audit_brand ;;
             incident)   audit_incident ;;
+            sast)       audit_sast ;;
+            sca)        audit_sca ;;
         esac
     done
 
@@ -1371,12 +1784,13 @@ audit_url() {
     # 4. Generate consolidated report
     echo ""
     log_section "GENERANDO REPORTES"
-    info "Consolidando hallazgos de las 4 fases..."
+    info "Consolidando hallazgos de las 6 fases..."
 
     audit_generate_report_txt || log_warn "Reporte TXT no generado"
     audit_generate_report_json || log_warn "Reporte JSON no generado"
     audit_generate_report_html || log_warn "Reporte HTML no generado"
     audit_generate_report_docx || log_warn "Reporte DOCX no generado (python-docx?)"
+    audit_generate_report_pdf || log_warn "Reporte PDF no generado (weasyprint?)"
 
     # 5. Print summary
     echo ""
@@ -1407,6 +1821,7 @@ audit_url() {
     kv "Reporte JSON" "${AUDIT_DIR}/reports/audit-report.json"
     kv "Reporte HTML" "${AUDIT_DIR}/reports/audit-report.html"
     kv "Reporte DOCX" "${AUDIT_DIR}/reports/audit-report.docx"
+    kv "Reporte PDF"  "${AUDIT_DIR}/reports/audit-report.pdf"
     echo ""
 
     if __dialog_avail; then
@@ -1416,7 +1831,8 @@ audit_url() {
         msg+="  TXT:  ${AUDIT_DIR}/reports/audit-report.txt\n"
         msg+="  JSON: ${AUDIT_DIR}/reports/audit-report.json\n"
         msg+="  HTML: ${AUDIT_DIR}/reports/audit-report.html\n"
-        msg+="  DOCX: ${AUDIT_DIR}/reports/audit-report.docx"
+        msg+="  DOCX: ${AUDIT_DIR}/reports/audit-report.docx\n"
+        msg+="  PDF:  ${AUDIT_DIR}/reports/audit-report.pdf"
         dialog "${__UI_OPTS[@]}" \
             --msgbox "$msg" 16 70 2>/dev/null || true
     fi
@@ -1432,16 +1848,18 @@ audit_menu() {
     __echo "${FG_RED}${BLD}"  "  ║         AUDITORÍA AUTOMÁTICA COMPLETA                       ║"
     __echo "${FG_RED}${BLD}"  "  ╚══════════════════════════════════════════════════════════════╝"
     echo ""
-    echo "  ${FG_BBLK}Esta opción ejecutará las 4 fases de auditoría automáticamente"
+    echo "  ${FG_BBLK}Esta opción ejecutará las 6 fases de auditoría automáticamente"
     echo "  contra la URL que proporcione:"
     echo ""
     echo "    1. Assessment       → Nmap, Nikto, WhatWeb, Nuclei, SSL, DNS, fuzzing"
     echo "    2. Malware Analysis → YARA, exiftool, cabeceras de seguridad"
     echo "    3. Brand Protection → dnstwist, theHarvester, sublist3r, HIBP"
     echo "    4. IR Readiness     → Evaluación de preparación ante incidentes"
+    echo "    5. SAST             → Semgrep, TruffleHog, Gitleaks, Bandit"
+    echo "    6. SCA + SBOM       → Trivy, Dep-Check, Syft, Grype, OSV-Scanner"
     echo ""
-    echo "  Tiempo estimado: 10-30 minutos dependiendo del target"
-    echo "  Se generarán reportes en TXT + JSON + HTML${RST}"
+    echo "  Tiempo estimado: 15-40 minutos dependiendo del target"
+    echo "  Se generarán reportes en TXT + JSON + HTML + DOCX + PDF${RST}"
     echo ""
 
     # Check if tools are installed
