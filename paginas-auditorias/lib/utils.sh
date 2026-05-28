@@ -113,10 +113,10 @@ os_family_debian() { [[ "${OS_INFO[FAMILY]}" == "debian" ]]; }
 
 # os_print — pretty-print OS info
 os_print() {
-    echo "  ${FG_BWHT}Sistema:${RST}     ${OS_INFO[NAME]} ${OS_INFO[VERSION_ID]}"
-    echo "  ${FG_BWHT}Familia:${RST}    ${OS_INFO[FAMILY]}"
-    echo "  ${FG_BWHT}Arquitectura:${RST} $(uname -m)"
-    echo "  ${FG_BWHT}Kernel:${RST}     $(uname -r)"
+    echo -e "  ${FG_BWHT}Sistema:${RST}     ${OS_INFO[NAME]} ${OS_INFO[VERSION_ID]}"
+    echo -e "  ${FG_BWHT}Familia:${RST}    ${OS_INFO[FAMILY]}"
+    echo -e "  ${FG_BWHT}Arquitectura:${RST} $(uname -m)"
+    echo -e "  ${FG_BWHT}Kernel:${RST}     $(uname -r)"
 }
 
 # os_check_compat — warns if not on a supported Linux distro

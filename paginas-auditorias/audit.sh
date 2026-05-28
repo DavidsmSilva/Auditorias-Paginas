@@ -455,7 +455,7 @@ run_verification() {
         for tool in "${tools[@]}"; do
             local bin
             bin=$(tool_bin "$tool")
-            verify_tool "$tool" "$phase" "$bin"
+            verify_tool "$tool" "$phase" "$bin" || true
         done
     done
 

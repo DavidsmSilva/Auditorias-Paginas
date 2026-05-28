@@ -433,7 +433,7 @@ tools_by_phase() {
         fi
     done
     # Sort by name for deterministic output
-    IFS=$'\n' result=($(sort <<<"${result[*]}")); unset IFS
+    IFS=$'\n' result=($(printf '%s\n' "${result[@]}" | sort)); unset IFS
     echo "${result[@]}"
 }
 
