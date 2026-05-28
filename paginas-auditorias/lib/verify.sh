@@ -201,7 +201,11 @@ generate_report_txt() {
         # Phases
         local phases=("Assessment" "Malware Analysis" "Brand Protection" "Incident Response" "SAST" "SCA + SBOM")
         for phase in "${phases[@]}"; do
-            read -r p f s t <<< "$(verify_phase_complete "$phase")"
+            # 🛡️ read con defaults: verify_phase_complete puede retornar vacío
+            #    si la fase no tiene tools registradas → sin defaults, printf %d
+            #    recibe string vacío y explota ("número inválido")
+            read -r p f s t <<< "$(verify_phase_complete "$phase")" 2>/dev/null || true
+            : "${p:=0}" "${f:=0}" "${s:=0}" "${t:=0}"
             echo "  FASE: ${phase}"
             echo "  ──────────────────────────────────"
             printf "    %-25s: %d/%d\n" "Herramientas instaladas" "$p" "$t"
@@ -314,7 +318,8 @@ summary() {
     local phases=("Assessment" "Malware Analysis" "Brand Protection" "Incident Response" "SAST" "SCA + SBOM")
     local g_total=0 g_pass=0 g_fail=0 g_skip=0
     for phase in "${phases[@]}"; do
-        read -r p f s t <<< "$(verify_phase_complete "$phase")"
+        read -r p f s t <<< "$(verify_phase_complete "$phase")" 2>/dev/null || true
+        : "${p:=0}" "${f:=0}" "${s:=0}" "${t:=0}"
         g_total=$(( g_total + t ))
         g_pass=$(( g_pass + p ))
         g_fail=$(( g_fail + f ))

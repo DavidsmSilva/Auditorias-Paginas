@@ -278,8 +278,8 @@ incident_install_all() {
     log_section "FASE 4: ATENCIÓN A INCIDENTES CIBERNÉTICOS"
     log_info "Iniciando instalación de herramientas de Incident Response..."
 
-    local tools
-    tools=($(tools_by_phase "Incident Response"))
+    local tools=()
+    mapfile -t tools < <(tools_by_phase "Incident Response")
 
     local total=${#tools[@]}
     local current=0
@@ -322,8 +322,8 @@ incident_menu() {
     while true; do
         incident_banner
 
-        local tools
-        tools=($(tools_by_phase "Incident Response"))
+        local tools=()
+        mapfile -t tools < <(tools_by_phase "Incident Response")
         local menu_items=()
 
         menu_items+=("all" "Instalar TODAS las herramientas de Incident Response")

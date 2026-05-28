@@ -197,8 +197,8 @@ sca_install_all() {
     log_section "FASE 6: SCA + SBOM — DEPENDENCY & SUPPLY CHAIN SECURITY"
     log_info "Iniciando instalación de herramientas SCA + SBOM..."
 
-    local tools
-    tools=($(tools_by_phase "SCA + SBOM"))
+    local tools=()
+    mapfile -t tools < <(tools_by_phase "SCA + SBOM")
 
     local total=${#tools[@]}
     local current=0
@@ -246,8 +246,8 @@ sca_menu() {
     while true; do
         sca_banner
 
-        local tools
-        tools=($(tools_by_phase "SCA + SBOM"))
+        local tools=()
+        mapfile -t tools < <(tools_by_phase "SCA + SBOM")
         local menu_items=()
 
         # Build menu: all + individual tools

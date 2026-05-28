@@ -276,8 +276,8 @@ brand_install_all() {
     log_section "FASE 3: PROTECCIÓN DE MARCA"
     log_info "Iniciando instalación de herramientas de Brand Protection..."
 
-    local tools
-    tools=($(tools_by_phase "Brand Protection"))
+    local tools=()
+    mapfile -t tools < <(tools_by_phase "Brand Protection")
 
     local total=${#tools[@]}
     local current=0
@@ -321,8 +321,8 @@ brand_menu() {
     while true; do
         brand_banner
 
-        local tools
-        tools=($(tools_by_phase "Brand Protection"))
+        local tools=()
+        mapfile -t tools < <(tools_by_phase "Brand Protection")
         local menu_items=()
 
         menu_items+=("all" "Instalar TODAS las herramientas de Brand Protection")

@@ -297,8 +297,8 @@ assessment_install_all() {
     log_section "FASE 1: ASSESSMENT DE CIBERSEGURIDAD"
     log_info "Iniciando instalación de herramientas de Assessment..."
 
-    local tools
-    tools=($(tools_by_phase "Assessment"))
+    local tools=()
+    mapfile -t tools < <(tools_by_phase "Assessment")
 
     local total=${#tools[@]}
     local current=0
@@ -341,8 +341,8 @@ assessment_menu() {
     while true; do
         assessment_banner
 
-        local tools
-        tools=($(tools_by_phase "Assessment"))
+        local tools=()
+        mapfile -t tools < <(tools_by_phase "Assessment")
         local menu_items=()
 
         # Build menu: all + individual tools

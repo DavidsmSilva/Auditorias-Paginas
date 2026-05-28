@@ -113,8 +113,8 @@ sast_install_all() {
     log_section "FASE 5: SAST — STATIC APPLICATION SECURITY TESTING"
     log_info "Iniciando instalación de herramientas SAST..."
 
-    local tools
-    tools=($(tools_by_phase "SAST"))
+    local tools=()
+    mapfile -t tools < <(tools_by_phase "SAST")
 
     local total=${#tools[@]}
     local current=0
@@ -156,8 +156,8 @@ sast_menu() {
     while true; do
         sast_banner
 
-        local tools
-        tools=($(tools_by_phase "SAST"))
+        local tools=()
+        mapfile -t tools < <(tools_by_phase "SAST")
         local menu_items=()
 
         # Build menu: all + individual tools

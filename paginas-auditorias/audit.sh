@@ -474,7 +474,7 @@ run_verification() {
     for phase in "${phases[@]}"; do
         log_info "Verificando fase: ${phase}"
         local tools
-        tools=($(tools_by_phase "$phase"))
+        mapfile -t tools < <(tools_by_phase "$phase")
         for tool in "${tools[@]}"; do
             local bin
             bin=$(tool_bin "$tool")
@@ -510,8 +510,8 @@ show_tool_summary() {
     echo ""
 
     for phase in "${all_phases[@]}"; do
-        local tools
-        tools=($(tools_by_phase "$phase"))
+        local tools=()
+        mapfile -t tools < <(tools_by_phase "$phase")
         local count=${#tools[@]}
 
         subheader "${phase} (${count} herramientas)"

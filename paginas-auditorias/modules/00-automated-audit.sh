@@ -172,11 +172,17 @@ audit_pre_flight() {
 
     info "Resolviendo DNS para ${domain}..."
 
-    # DNS resolution (multiple methods)
+    # 🛡️ DNS resolution — MUST return a real IPv4 address, NOT a CNAME
+    #    Previous bug: dig +short returned CNAME (cdn1.wixdns.net) instead of IP,
+    #    which caused Nmap and all IP-based tools to fail.
     local ip=""
-    ip=$(dig +short "$domain" 2>/dev/null | head -1)
-    [[ -z "$ip" ]] && ip=$(host "$domain" 2>/dev/null | head -1 | grep -oP '[\d.]+$')
-    [[ -z "$ip" ]] && ip=$(nslookup "$domain" 2>/dev/null | grep -oP 'Address: \K[\d.]+')
+    # Method 1: dig A record + grep for valid IPv4 (filters out CNAMEs)
+    ip=$(dig +short A "$domain" 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+    # Method 2: host command, parse "has address"
+    [[ -z "$ip" ]] && ip=$(host "$domain" 2>/dev/null | grep -oP 'has address \K[\d.]+' | head -1)
+    # Method 3: nslookup
+    [[ -z "$ip" ]] && ip=$(nslookup "$domain" 2>/dev/null | grep -oP 'Address: \K[\d.]+' | grep -v ':' | head -1)
+    # Method 4: ping fallback
     [[ -z "$ip" ]] && ip=$(ping -c1 -W2 "$domain" 2>/dev/null | grep -oP '[\d.]+(?= \()' | head -1)
 
     if [[ -n "$ip" ]]; then
@@ -332,7 +338,12 @@ audit_assessment() {
     # ----- 1.3 Nikto — Web vulnerability scanner -----
     info "[3/8] Nikto — Escaneo de vulnerabilidades web..."
     if cmd_exists nikto; then
-        timed_run 300 nikto -h "$url" -Format txt \
+        # 🛡️ WAF/CDN detection: si el target usa Wix/Cloudflare/ Akamai,
+        #    Nikto es significativamente más lento. Timeout aumentado a 600s.
+        if [[ "${AUDIT_TARGET[waf]}" != "none detected" ]]; then
+            log_info "WAF detectado (${AUDIT_TARGET[waf]}) — usando timeout extendido para Nikto"
+        fi
+        timed_run 600 nikto -h "$url" -Format txt \
             -output "${AUDIT_DIR}/scans/web/nikto.txt" 2>/dev/null || true
 
         if [[ -f "${AUDIT_DIR}/scans/web/nikto.txt" ]]; then
@@ -1643,11 +1654,20 @@ audit_generate_report_docx() {
 
     # Generate DOCX
     log_info "Ejecutando generador DOCX..."
-    python3 "$docx_script" "$json_file" "$docx_file" 2>&1 | while IFS= read -r line; do
-        log_debug "[docx] ${line}"
-    done
+    # 🛡️ Capturar stderr real de Python — antes PIPESTATUS[0] apuntaba al while loop,
+    #    no al comando python3. Ahora usamos un archivo temporal para stderr.
+    local docx_err
+    docx_err=$(mktemp /tmp/docx_err.XXXXXX 2>/dev/null || echo "/tmp/docx_err.tmp")
+    python3 "$docx_script" "$json_file" "$docx_file" 2>"$docx_err"
+    local rc=$?
 
-    local rc=${PIPESTATUS[0]}
+    # Log the stderr output
+    if [[ -f "$docx_err" && -s "$docx_err" ]]; then
+        while IFS= read -r line; do
+            log_debug "[docx] ${line}"
+        done < "$docx_err"
+    fi
+    rm -f "$docx_err" 2>/dev/null || true
 
     if [[ $rc -eq 0 && -f "$docx_file" ]]; then
         log_ok "Reporte DOCX generado: ${docx_file}"
@@ -1655,6 +1675,7 @@ audit_generate_report_docx() {
         return 0
     else
         log_error "Falló generación de reporte DOCX (exit: ${rc})"
+        log_error "Revise el log para detalles del error de Python (docx_report.py)"
         return 1
     fi
 }

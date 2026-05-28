@@ -434,7 +434,10 @@ tools_by_phase() {
     done
     # Sort by name for deterministic output
     IFS=$'\n' result=($(printf '%s\n' "${result[@]}" | sort)); unset IFS
-    echo "${result[@]}"
+    # 🛡️ printf instead of echo: each tool on its own line → safe word splitting
+    #    Prev: echo "${result[@]}" collapsed everything space-separated, which
+    #    broke when callers relied on word splitting (esp. with "SCA + SBOM" phase)
+    printf '%s\n' "${result[@]}"
 }
 
 # Get install method for a tool
