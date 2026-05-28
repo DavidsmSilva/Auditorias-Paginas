@@ -3,14 +3,14 @@
 # audit.sh — PaginasAudit Cyber Audit Installer
 # ============================================================================
 # Instalador modular de herramientas de ciberseguridad para Kali Linux.
-# Organizado en 4 fases: Assessment, Malware, Brand Protection, Incident Response
+# Organizado en 6 fases: Assessment, Malware, Brand Protection, IR, SAST, SCA+SBOM
 #
 # Uso:
 #   ./audit.sh                    → Menú interactivo (TUI con dialog)
 #   ./audit.sh --help             → Ayuda completa
 #   ./audit.sh --list-tools       → Listar todas las herramientas
 #   ./audit.sh --install-all      → Instalar TODO
-#   ./audit.sh --install-phase N  → Instalar fase N (1-4)
+#   ./audit.sh --install-phase N  → Instalar fase N (1-6)
 #   ./audit.sh --install-tool X   → Instalar herramienta específica
 #   ./audit.sh --verify           → Verificar instalación únicamente
 #   ./audit.sh --report           → Generar reporte de verificación
@@ -23,7 +23,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 # ---- Config ---------------------------------------------------------------
-VERSION="1.0.0"
+VERSION="2.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export SCRIPT_DIR
 
