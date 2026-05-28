@@ -20,8 +20,8 @@ MODULE_AUDIT_NAME="Automated Audit"
 MODULE_AUDIT_DESC="Auditoría automática completa contra URL objetivo"
 
 # ---- State ---------------------------------------------------------------
-declare -a AUDIT_FINDINGS=()        # SEVERITY|SOURCE|TITLE|DETAIL|RECOMMENDATION|EVIDENCE
-declare -A AUDIT_TARGET=(
+declare -g -a AUDIT_FINDINGS=()        # SEVERITY|SOURCE|TITLE|DETAIL|RECOMMENDATION|EVIDENCE
+declare -g -A AUDIT_TARGET=(
     [url]=""
     [domain]=""
     [ip]=""
@@ -32,11 +32,11 @@ declare -A AUDIT_TARGET=(
     [technologies]=""
     [status]="pending"
 )
-declare -A AUDIT_TIMING=()          # phase -> seconds
-declare -a AUDIT_LOG=()            # All tool outputs (captured)
-declare AUDIT_DIR=""                # Working directory for this audit
-declare AUDIT_START_TIME=""
-declare AUDIT_END_TIME=""
+declare -g -A AUDIT_TIMING=()          # phase -> seconds
+declare -g -a AUDIT_LOG=()            # All tool outputs (captured)
+declare -g AUDIT_DIR=""                # Working directory for this audit
+declare -g AUDIT_START_TIME=""
+declare -g AUDIT_END_TIME=""
 
 # ---- Constants -----------------------------------------------------------
 AUDIT_TIMEOUT_DEFAULT=120           # seconds per tool
