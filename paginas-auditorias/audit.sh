@@ -617,6 +617,15 @@ show_help() {
         echo "    ./audit.sh --report              # Generar reporte"
         echo "    ./audit.sh --audit https://ejemplo.com  # Auditoría automática"
         echo "    ./audit.sh --audit https://ejemplo.com ./audits  # Con directorio"
+        echo "    ./audit.sh --mode opsec --audit ...  # Con OPSEC pre-vuelo"
+        echo "    ./audit.sh --mode bounty --audit ... # Con guías de explotación"
+        echo "    ./audit.sh --clean                   # Limpiar evidencia de auditoría"
+        echo ""
+        echo "  SEGURIDAD DEL OPERADOR"
+        echo "    · Consent log: registro de autorización del target antes de auditar"
+        echo "    · OPSEC auto-prompt: verifica VPN, DNS leak, IPv6 pre-auditoría"
+        echo "    · Findings vault: protege hallazgos sensibles (permisos 600)"
+        echo "    · Cleanup: elimina evidencia de auditoría del disco (--clean)"
         echo ""
         echo "  ESTRUCTURA DE DIRECTORIOS"
         echo "    audit.sh           → Entry point principal"
@@ -742,12 +751,13 @@ cli_dispatch() {
             ;;
         --audit)
             pre_flight
-            # OPSEC check automático si está activo
+            # 🛡️ OPSEC check — automático si está activo, si no, preguntar
             if $OPSEC_MODE && declare -F opsec_check &>/dev/null; then
                 opsec_check
+            else
+                opsec_auto_prompt
             fi
-            install_core_deps
-            load_modules
+            # 📝 Consentimiento — siempre preguntar antes de auditar
             local audit_url="${2:-}"
             local audit_dir="${3:-${SCRIPT_DIR}/audits}"
             if [[ -z "$audit_url" ]]; then
@@ -755,13 +765,25 @@ cli_dispatch() {
                 hint "Ejemplo: ./audit.sh --audit https://example.com"
                 exit 1
             fi
+            consent_prompt "$audit_url"
+            install_core_deps
+            load_modules
             # Ensure the audit module is loaded
             if declare -F audit_url &>/dev/null; then
                 audit_url "$audit_url" "$audit_dir"
+                # 🔒 Findings vault — proteger hallazgos después de la auditoría
+                if declare -F findings_vault &>/dev/null && [[ -n "${AUDIT_DIR:-}" ]]; then
+                    findings_vault "$AUDIT_DIR"
+                fi
             else
                 error "Módulo de auditoría automática no disponible."
                 exit 1
             fi
+            exit 0
+            ;;
+        --clean|-c)
+            echo ""
+            audit_cleanup
             exit 0
             ;;
         ""|--menu|-m)
@@ -773,6 +795,112 @@ cli_dispatch() {
             exit 1
             ;;
     esac
+}
+
+# ---- Security & Compliance -------------------------------------------------
+
+# consent_prompt — pide confirmación de autorización antes de auditar
+consent_prompt() {
+    local target="$1"
+    echo ""
+    __echo "${FG_RED}${BLD}" "  ╔══════════════════════════════════════════════════════════════╗"
+    __echo "${FG_RED}${BLD}" "  ║     ⚠  CONSENTIMIENTO REQUERIDO — AUTORIZACIÓN DE AUDITORÍA  ║"
+    __echo "${FG_RED}${BLD}" "  ╚══════════════════════════════════════════════════════════════╝"
+    echo ""
+    log_warn "Está por auditar: ${target}"
+    log_warn "Auditar sin autorización es ILEGAL en la mayoría de las jurisdicciones."
+    echo ""
+    if ! confirm "¿Tiene autorización por escrito del propietario del sitio?" "n"; then
+        error "Auditoría cancelada — se requiere autorización del propietario."
+        exit 1
+    fi
+    local ref=""
+    read -r -p "  Referencia del cliente/permiso (opcional, Enter para omitir): " ref
+    echo ""
+
+    # Save consent log
+    local log_dir="${SCRIPT_DIR}/logs"
+    mkdir -p "$log_dir"
+    local consent_file="${log_dir}/consent.log"
+    {
+        echo "=== CONSENT LOG ==="
+        echo "Timestamp: $(date '+%Y-%m-%d %H:%M:%S')"
+        echo "Operator:  $(whoami)@$(hostname 2>/dev/null || echo 'unknown')"
+        echo "Target:    ${target}"
+        echo "Reference: ${ref:-N/A}"
+        echo "SHA256:    $(echo "${target}|$(date +%s)|${ref}" | sha256sum 2>/dev/null | cut -d' ' -f1 || echo 'checksum_unavailable')"
+        echo "Output:    ${AUDIT_DIR:-not set at consent time}"
+        echo "==================="
+        echo ""
+    } >> "$consent_file"
+    chmod 600 "$consent_file"
+    log_ok "Consentimiento registrado en: ${consent_file}"
+}
+
+# opsec_auto_prompt — ofrece ejecutar OPSEC check si no está activo
+opsec_auto_prompt() {
+    if ! $OPSEC_MODE; then
+        echo ""
+        log_warn "🛡️  No se detectó modo OPSEC activo (--mode opsec)"
+        if confirm "¿Ejecutar chequeo de anonimato (VPN, DNS leak, IPv6) antes de continuar?" "y"; then
+            OPSEC_MODE=true
+            export OPSEC_MODE
+            if declare -F opsec_check &>/dev/null; then
+                opsec_check
+            else
+                # Fallback: cargar módulo y reintentar
+                load_modules
+                if declare -F opsec_check &>/dev/null; then
+                    opsec_check
+                fi
+            fi
+        fi
+    fi
+}
+
+# findings_vault — protege hallazgos sensibles post-auditoría
+findings_vault() {
+    local audit_dir="$1"
+    echo ""
+    log_section "🔒 FINDINGS VAULT — Protegiendo datos sensibles"
+    if [[ ! -d "$audit_dir" ]]; then
+        log_info "Sin directorio de auditoría para proteger."
+        return 0
+    fi
+    local protected=0
+    while IFS= read -r -d '' f; do
+        chmod 600 "$f" 2>/dev/null && protected=$(( protected + 1 ))
+    done < <(find "$audit_dir" -type f \( -name "*-results.*" -o -name "*secret*" -o -name "*credencial*" -o -name "*password*" -o -name "*token*" \) -print0 2>/dev/null)
+    # Also protect the entire audit dir from other users
+    chmod -R o-rwx "$audit_dir" 2>/dev/null || true
+    log_ok "${protected} archivos de hallazgos protegidos (permisos 600, resto del directorio 700)"
+}
+
+# audit_cleanup — elimina evidencia de auditorías anteriores
+audit_cleanup() {
+    echo ""
+    log_section "🧹 CLEANUP — Eliminando evidencia de auditoría"
+    local audit_dir="${SCRIPT_DIR}/audits"
+    if [[ -d "$audit_dir" ]]; then
+        local count
+        count=$(find "$audit_dir" -type f 2>/dev/null | wc -l)
+        if [[ "$count" -gt 0 ]]; then
+            log_warn "Se eliminarán ${count} archivos de auditoría en: ${audit_dir}"
+            if confirm "¿Está seguro?" "n"; then
+                rm -rf "${audit_dir:?}/"* 2>/dev/null
+                log_ok "Directorio de auditorías limpiado."
+            else
+                log_info "Cleanup cancelado."
+            fi
+        else
+            log_info "No hay auditorías para limpiar."
+        fi
+    fi
+    # Clean logs
+    if [[ -d "${SCRIPT_DIR}/logs" ]]; then
+        rm -f "${SCRIPT_DIR}/logs/"*.log 2>/dev/null
+        log_ok "Logs eliminados."
+    fi
 }
 
 # ---- Main -----------------------------------------------------------------

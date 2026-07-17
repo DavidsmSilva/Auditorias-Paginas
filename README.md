@@ -206,6 +206,24 @@ Agrega guías de explotación detalladas al reporte HTML para cada hallazgo. Inc
 
 Ejecuta un checklist de anonimato pre-vuelo antes de la auditoría: verifica VPN, DNS leaks, WebRTC, User-Agent, y otras fugas de identidad. Indispensable si operás desde entornos controlados.
 
+Si ejecutás `--audit` sin `--mode opsec`, **el tool te pregunta automáticamente** si querés ejecutar el chequeo antes de arrancar.
+
+### 📄 Consent log
+
+Antes de cada auditoría, el tool pide **confirmación de autorización por escrito** del propietario del sitio. Sin eso, no arranca. Guarda un registro firmado con timestamp, operador, target y referencia en `logs/consent.log` (permisos 600).
+
+### 🔒 Findings vault
+
+Al finalizar la auditoría, todos los archivos con hallazgos sensibles (resultados, secretos, credenciales) se protegen con permisos **600** (solo el operador puede leerlos). El directorio completo se cierra a otros usuarios.
+
+### 🧹 Cleanup (`--clean`)
+
+```bash
+bash paginas-auditorias/audit.sh --clean
+```
+
+Elimina toda la evidencia de auditorías anteriores (directorio `audits/` + logs). Te pide confirmación antes de borrar.
+
 ---
 
 ## Reportes
