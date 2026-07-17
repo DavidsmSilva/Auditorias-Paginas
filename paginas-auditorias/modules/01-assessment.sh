@@ -223,6 +223,48 @@ assessment_install_amass() {
     verify_tool "amass" "Assessment" "amass"
 }
 
+assessment_install_naabu() {
+    log_section "Instalando Naabu"
+    info "Escáner de puertos rápido (ProjectDiscovery)"
+    if cmd_exists naabu; then
+        verify_tool "naabu" "Assessment" "naabu"
+        return 0
+    fi
+    if ! cmd_exists go; then
+        pkg_install golang-go
+    fi
+    go_install "github.com/projectdiscovery/naabu/v2/cmd/naabu"
+    verify_tool "naabu" "Assessment" "naabu"
+}
+
+assessment_install_katana() {
+    log_section "Instalando Katana"
+    info "Crawler web automático (ProjectDiscovery)"
+    if cmd_exists katana; then
+        verify_tool "katana" "Assessment" "katana"
+        return 0
+    fi
+    if ! cmd_exists go; then
+        pkg_install golang-go
+    fi
+    go_install "github.com/projectdiscovery/katana/cmd/katana"
+    verify_tool "katana" "Assessment" "katana"
+}
+
+assessment_install_ffuf() {
+    log_section "Instalando FFUF"
+    info "Fuzzing rápido para descubrimiento de contenido web"
+    if cmd_exists ffuf; then
+        verify_tool "ffuf" "Assessment" "ffuf"
+        return 0
+    fi
+    if ! cmd_exists go; then
+        pkg_install golang-go
+    fi
+    go_install "github.com/ffuf/ffuf/v2"
+    verify_tool "ffuf" "Assessment" "ffuf"
+}
+
 assessment_install_hydra() {
     log_section "Instalando Hydra"
     info "Fuerza bruta de autenticación"
@@ -280,6 +322,9 @@ assessment_install_tool() {
         httpx)      assessment_install_httpx ;;
         subfinder)  assessment_install_subfinder ;;
         amass)      assessment_install_amass ;;
+        naabu)      assessment_install_naabu ;;
+        katana)     assessment_install_katana ;;
+        ffuf)       assessment_install_ffuf ;;
         hydra)      assessment_install_hydra ;;
         john)       assessment_install_john ;;
         hashcat)    assessment_install_hashcat ;;

@@ -7,7 +7,7 @@
 #   Fase 2: Malware Analysis (YARA, exiftool, análisis de recursos)
 #   Fase 3: Brand Protection (dnstwist, theHarvester, sublist3r)
 #   Fase 4: IR Readiness Checklist
-#   Fase 5: SAST (Semgrep, TruffleHog, Gitleaks, Bandit)
+#   Fase 5: SAST (Semgrep, TruffleHog, Gitleaks, Bandit, Ruff)
 #   Fase 6: SCA + SBOM (Trivy, Dep-Check, Syft, Grype, OSV-Scanner)
 #
 # Genera reporte consolidado en TXT + JSON + HTML interactivo.
@@ -250,7 +250,7 @@ audit_assessment() {
     local url="${AUDIT_TARGET[url]}"
 
     # ----- 1.1 WhatWeb — Technology fingerprinting -----
-    info "[1/8] WhatWeb — Identificando tecnologías..."
+    info "[1/11] WhatWeb — Identificando tecnologías..."
     if cmd_exists whatweb; then
         timed_run 120 whatweb --aggression 1 --color=never "$url" 2>/dev/null \
             > "${AUDIT_DIR}/scans/web/whatweb.txt" || true
@@ -273,8 +273,30 @@ audit_assessment() {
         warn "WhatWeb no instalado — saltando"
     fi
 
-    # ----- 1.2 Nmap — Port scan + NSE scripts -----
-    info "[2/8] Nmap — Escaneo de puertos y servicios..."
+    # ----- 1.2 Naabu — Fast port scan (ProjectDiscovery) -----
+    info "[2/11] Naabu — Escaneo rápido de puertos..."
+    if cmd_exists naabu; then
+        timed_run 120 naabu -host "$domain" -silent \
+            -o "${AUDIT_DIR}/scans/nmap/naabu-ports.txt" 2>/dev/null || true
+        if [[ -s "${AUDIT_DIR}/scans/nmap/naabu-ports.txt" ]]; then
+            local naabu_count
+            naabu_count=$(wc -l < "${AUDIT_DIR}/scans/nmap/naabu-ports.txt")
+            log_ok "Naabu: ${naabu_count} puertos abiertos detectados"
+            if [[ "$naabu_count" -gt 20 ]]; then
+                add_finding "INFO" "Naabu" "Superficie amplia: ${naabu_count} puertos abiertos" \
+                    "Naabu detectó ${naabu_count} puertos abiertos en el target. Una superficie grande aumenta el riesgo de exposición." \
+                    "Revisar cada puerto abierto y cerrar los que no sean necesarios. Aplicar segmentación de red." \
+                    "Puertos: $(head -5 "${AUDIT_DIR}/scans/nmap/naabu-ports.txt" | tr '\n' ' ')"
+            fi
+        else
+            log_ok "Naabu: sin puertos abiertos detectados (o firewall bloqueando)"
+        fi
+    else
+        warn "Naabu no instalado — saltando escaneo rápido de puertos"
+    fi
+
+    # ----- 1.3 Nmap — Port scan + NSE scripts -----
+    info "[3/11] Nmap — Escaneo de puertos y servicios..."
     if cmd_exists nmap; then
         # Quick port scan first
         timed_run 180 nmap -T4 --open -sV --reason \
@@ -335,8 +357,8 @@ audit_assessment() {
         warn "Nmap no instalado — saltando escaneo de puertos"
     fi
 
-    # ----- 1.3 Nikto — Web vulnerability scanner -----
-    info "[3/8] Nikto — Escaneo de vulnerabilidades web..."
+    # ----- 1.4 Nikto — Web vulnerability scanner -----
+    info "[4/11] Nikto — Escaneo de vulnerabilidades web..."
     if cmd_exists nikto; then
         # 🛡️ WAF/CDN detection: si el target usa Wix/Cloudflare/ Akamai,
         #    Nikto es significativamente más lento. Timeout aumentado a 600s.
@@ -374,8 +396,8 @@ audit_assessment() {
         warn "Nikto no instalado — saltando"
     fi
 
-    # ----- 1.4 SSL/TLS Scan -----
-    info "[4/8] SSL/TLS — Evaluación de seguridad..."
+    # ----- 1.5 SSL/TLS Scan -----
+    info "[5/11] SSL/TLS — Evaluación de seguridad..."
     if [[ "${AUDIT_TARGET[scheme]}" == "https" ]]; then
         # sslscan
         if cmd_exists sslscan; then
@@ -411,8 +433,8 @@ audit_assessment() {
             "Implementar HTTPS con Let's Encrypt. Redirigir HTTP→HTTPS."
     fi
 
-    # ----- 1.5 DNS Enumeration -----
-    info "[5/8] DNS — Enumeración de registros..."
+    # ----- 1.6 DNS Enumeration -----
+    info "[6/11] DNS — Enumeración de registros..."
     if cmd_exists dnsrecon; then
         timed_run 120 dnsrecon -d "$domain" \
             > "${AUDIT_DIR}/scans/dns/dnsrecon.txt" 2>/dev/null || true
@@ -434,8 +456,8 @@ audit_assessment() {
         fi
     fi
 
-    # ----- 1.6 Nuclei — Template-based scanning -----
-    info "[6/8] Nuclei — Escaneo basado en templates..."
+    # ----- 1.7 Nuclei — Template-based scanning -----
+    info "[7/11] Nuclei — Escaneo basado en templates..."
     if cmd_exists nuclei; then
         timed_run 300 nuclei -u "$url" -severity low,medium,high,critical \
             -o "${AUDIT_DIR}/scans/web/nuclei.txt" \
@@ -468,8 +490,8 @@ audit_assessment() {
         warn "Nuclei no instalado — saltando"
     fi
 
-    # ----- 1.7 WPScan (conditional) -----
-    info "[7/8] WPScan — Escaneo WordPress (si aplica)..."
+    # ----- 1.8 WPScan (conditional) -----
+    info "[8/11] WPScan — Escaneo WordPress (si aplica)..."
     if cmd_exists wpscan && grep -qi "wordpress" "${AUDIT_DIR}/scans/web/whatweb.txt" 2>/dev/null; then
         timed_run 300 wpscan --url "$url" --no-update \
             --output "${AUDIT_DIR}/scans/web/wpscan.txt" 2>/dev/null || true
@@ -485,8 +507,70 @@ audit_assessment() {
         info "  WordPress no detectado — saltando WPScan"
     fi
 
-    # ----- 1.8 Gobuster — Directory fuzzing (lite) -----
-    info "[8/8] Gobuster — Fuzzing de directorios..."
+    # ----- 1.9 Katana — Web crawler (ProjectDiscovery) -----
+    info "[9/11] Katana — Crawleando el sitio web..."
+    if cmd_exists katana; then
+        mkdir -p "${AUDIT_DIR}/scans/web"
+        timed_run 120 katana -u "$url" -d 2 -silent -aff \
+            -o "${AUDIT_DIR}/scans/web/katana-endpoints.txt" 2>/dev/null || true
+        if [[ -s "${AUDIT_DIR}/scans/web/katana-endpoints.txt" ]]; then
+            local katana_count
+            katana_count=$(wc -l < "${AUDIT_DIR}/scans/web/katana-endpoints.txt")
+            log_ok "Katana: ${katana_count} endpoints descubiertos"
+            # Check for interesting endpoints
+            if grep -qiE "admin|backup|config|\.git|\.env|api|swagger|graphql|debug|test|dev|staging" \
+                "${AUDIT_DIR}/scans/web/katana-endpoints.txt" 2>/dev/null; then
+                add_finding "HIGH" "Katana" "Endpoints sensibles descubiertos en el crawleo" \
+                    "Katana encontró rutas potencialmente sensibles (admin, backup, config, etc.) durante el crawleo." \
+                    "Revisar cada endpoint y restringir acceso si no debería ser público." \
+                    "Hallazgos: $(grep -iE "admin|backup|config|\.git|\.env|api|swagger|graphql|debug|test|dev|staging" "${AUDIT_DIR}/scans/web/katana-endpoints.txt" | head -5 | tr '\n' ' ')"
+            fi
+        else
+            log_ok "Katana: sin endpoints descubiertos"
+        fi
+    else
+        warn "Katana no instalado — saltando crawleo web"
+    fi
+
+    # ----- 1.10 FFUF — Fast content discovery -----
+    info "[10/11] FFUF — Fuzzing rápido de contenido..."
+    if cmd_exists ffuf; then
+        local wordlist=""
+        for wl in "${AUDIT_WORDLIST_DIR}/dirb/common.txt" \
+                  "${AUDIT_WORDLIST_DIR}/dirbuster/directory-list-2.3-medium.txt" \
+                  "/usr/share/dirb/wordlists/common.txt" \
+                  "/usr/share/dirbuster/wordlists/directory-list-2.3-small.txt"; do
+            if [[ -f "$wl" ]]; then
+                wordlist="$wl"
+                break
+            fi
+        done
+        if [[ -n "$wordlist" ]]; then
+            timed_run 180 ffuf -u "${url}/FUZZ" -w "$wordlist" \
+                -t 50 -c -s \
+                -o "${AUDIT_DIR}/scans/web/ffuf-results.json" 2>/dev/null || true
+            if [[ -s "${AUDIT_DIR}/scans/web/ffuf-results.json" ]]; then
+                local ffuf_count
+                ffuf_count=$(python3 -c "import json; d=json.load(open('${AUDIT_DIR}/scans/web/ffuf-results.json')); print(len(d.get('results',[])))" 2>/dev/null || echo "0")
+                if [[ "$ffuf_count" -gt 0 ]]; then
+                    add_finding "INFO" "FFUF" "${ffuf_count} rutas descubiertas por fuzzing" \
+                        "FFUF encontró ${ffuf_count} rutas/archivos en el servidor web mediante fuzzing." \
+                        "Revisar que ninguna ruta descubierta exponga información sensible o funcionalidad administrativa." \
+                        "Resultados en: scans/web/ffuf-results.json"
+                fi
+            fi
+        else
+            warn "No se encontró wordlist para FFUF"
+            add_finding "MEDIUM" "FFUF" "Wordlist no encontrada para fuzzing" \
+                "No se encontró wordlist para fuzzing con FFUF." \
+                "Instalar: sudo apt install dirb (incluye wordlists)"
+        fi
+    else
+        warn "FFUF no instalado — saltando fuzzing de contenido"
+    fi
+
+    # ----- 1.11 Gobuster — Directory fuzzing (legacy) -----
+    info "[11/11] Gobuster — Fuzzing de directorios (legacy)..."
     if cmd_exists gobuster; then
         local wordlist=""
         # Find a suitable wordlist
@@ -911,7 +995,7 @@ audit_sast() {
     local url="${AUDIT_TARGET[url]}"
 
     # ----- 5.1 Semgrep — Multi-language SAST scanning -----
-    info "[1/4] Semgrep — Escaneo SAST multi-lenguaje..."
+    info "[1/5] Semgrep — Escaneo SAST multi-lenguaje..."
     if cmd_exists semgrep; then
         # Try to scan downloaded resources first, fallback to URL
         local semgrep_target="${AUDIT_DIR}/resources"
@@ -955,7 +1039,7 @@ audit_sast() {
     echo ""
 
     # ----- 5.2 TruffleHog — Secret scanning -----
-    info "[2/4] TruffleHog — Buscando secretos..."
+    info "[2/5] TruffleHog — Buscando secretos..."
     if cmd_exists trufflehog; then
         # TruffleHog filesystem scan on downloaded resources
         if [[ -d "${AUDIT_DIR}/resources" ]] && [[ "$(find "${AUDIT_DIR}/resources" -type f 2>/dev/null | wc -l)" -gt 0 ]]; then
@@ -987,7 +1071,7 @@ audit_sast() {
     echo ""
 
     # ----- 5.3 Gitleaks — Git secret scanning -----
-    info "[3/4] Gitleaks — Buscando secretos en repositorios Git..."
+    info "[3/5] Gitleaks — Buscando secretos en repositorios Git..."
     if cmd_exists gitleaks; then
         # Check if there's a git repo in resources
         if [[ -d "${AUDIT_DIR}/resources/.git" ]]; then
@@ -1018,7 +1102,7 @@ audit_sast() {
     echo ""
 
     # ----- 5.4 Bandit — Python SAST -----
-    info "[4/4] Bandit — Analizando código Python..."
+    info "[4/5] Bandit — Analizando código Python..."
     if cmd_exists bandit; then
         local py_files
         py_files=$(find "${AUDIT_DIR}/resources" -name "*.py" -type f 2>/dev/null | head -20)
@@ -1049,6 +1133,40 @@ audit_sast() {
         add_finding "INFO" "Bandit" "Bandit no instalado — análisis Python omitido" \
             "Bandit no está disponible en este sistema." \
             "Instale Bandit: pip install bandit"
+    fi
+    echo ""
+
+    # ----- 5.5 Ruff — Python Linter ultra-rápido -----
+    info "[5/5] Ruff — Analizando código Python con reglas de seguridad..."
+    if cmd_exists ruff; then
+        local py_files
+        py_files=$(find "${AUDIT_DIR}/resources" -name "*.py" -type f 2>/dev/null | head -20)
+        if [[ -n "$py_files" ]]; then
+            mkdir -p "${AUDIT_DIR}/scans/sast"
+            timed_run 120 ruff check --quiet --no-cache \
+                "${AUDIT_DIR}/resources" 2>/dev/null \
+                > "${AUDIT_DIR}/scans/sast/ruff-results.txt" || true
+            if [[ -s "${AUDIT_DIR}/scans/sast/ruff-results.txt" ]]; then
+                local ruff_count
+                ruff_count=$(wc -l < "${AUDIT_DIR}/scans/sast/ruff-results.txt")
+                add_finding "MEDIUM" "Ruff" "Ruff detectó ${ruff_count} problemas de calidad/seguridad en código Python" \
+                    "Ruff (linter AST-based en Rust) encontró ${ruff_count} violaciones, incluyendo reglas de seguridad." \
+                    "Revise ${AUDIT_DIR}/scans/sast/ruff-results.txt y corrija según prioridad." \
+                    "Resultados en: scans/sast/ruff-results.txt"
+            else
+                add_finding "INFO" "Ruff" "Ruff completado: código Python sin problemas" \
+                    "El análisis con Ruff no encontró violaciones de reglas de seguridad/calidad." \
+                    "Mantenga Ruff en su pipeline CI/CD para linting rápido."
+            fi
+        else
+            add_finding "INFO" "Ruff" "Ruff: sin archivos Python para analizar" \
+                "No se encontraron archivos .py en los recursos descargados." \
+                "Ejecute Ruff directamente sobre el repositorio si contiene código Python."
+        fi
+    else
+        add_finding "INFO" "Ruff" "Ruff no instalado — análisis Python omitido" \
+            "Ruff no está disponible en este sistema." \
+            "Instale Ruff: pip install ruff"
     fi
     echo ""
 
@@ -1432,6 +1550,19 @@ audit_generate_report_json() {
     echo "$file"
 }
 
+# ---- HTML Helpers ----------------------------------------------------------
+
+# html_escape — escapa caracteres HTML para prevenir XSS en reportes
+html_escape() {
+    local s="$1"
+    s="${s//&/&amp;}"
+    s="${s//</&lt;}"
+    s="${s//>/&gt;}"
+    s="${s//\"/&quot;}"
+    s="${s//\'/&#39;}"
+    printf '%s' "$s"
+}
+
 audit_generate_report_html() {
     local file="${AUDIT_DIR}/reports/audit-report.html"
 
@@ -1461,11 +1592,27 @@ audit_generate_report_html() {
         for finding in "${AUDIT_FINDINGS[@]}"; do
             IFS='|' read -r fsev fsrc ftitle fdetail frec fevidence <<< "$finding"
             [[ "$fsev" != "$sev" ]] && continue
+            local e_title e_src e_detail e_rec e_evidence
+            e_title=$(html_escape "$ftitle")
+            e_src=$(html_escape "$fsrc")
+            e_detail=$(html_escape "$fdetail")
+            e_rec=$(html_escape "$frec")
+            e_evidence=$(html_escape "$fevidence")
             findings_html+="<div class='finding'>"
-            findings_html+="  <div class='finding-title'><strong>${ftitle}</strong> <span class='tag'>${fsrc}</span></div>"
-            findings_html+="  <div class='finding-detail'>${fdetail}</div>"
-            findings_html+="  <div class='finding-rec'><em>Recomendación:</em> ${frec}</div>"
-            [[ -n "$fevidence" ]] && findings_html+="  <pre class='finding-evidence'>${fevidence}</pre>"
+            findings_html+="  <div class='finding-title'><strong>${e_title}</strong> <span class='tag'>${e_src}</span></div>"
+            findings_html+="  <div class='finding-detail'>${e_detail}</div>"
+            findings_html+="  <div class='finding-rec'><em>Recomendación:</em> ${e_rec}</div>"
+            [[ -n "$fevidence" ]] && findings_html+="  <pre class='finding-evidence'>${e_evidence}</pre>"
+            # 🐞 Modo bounty: inyectar guía de explotación para este hallazgo
+            if $BOUNTY_MODE && declare -F classify_vuln &>/dev/null && declare -F get_exploit_guide &>/dev/null; then
+                local vuln_type
+                vuln_type=$(classify_vuln "$fsev" "$fsrc" "$ftitle" 2>/dev/null || echo "generic")
+                local guide
+                guide=$(get_exploit_guide "$vuln_type" "$fsrc" "$ftitle" "${AUDIT_TARGET[url]:-}" "${AUDIT_TARGET[domain]:-}" "${AUDIT_TARGET[ip]:-}" 2>/dev/null || true)
+                if [[ -n "$guide" ]]; then
+                    findings_html+="$guide"
+                fi
+            fi
             findings_html+="</div>"
         done
         findings_html+="</div>"
@@ -1504,6 +1651,28 @@ audit_generate_report_html() {
         el.style.display = el.style.display === "none" ? "block" : "none";
     }
     </script>'
+
+    # 🐞 Modo bounty: sección de metodología bug bounty
+    local bounty_section=""
+    if $BOUNTY_MODE && declare -F bounty_methodology_guide &>/dev/null; then
+        local bounty_html
+        bounty_html=$(bounty_methodology_guide 2>/dev/null || true)
+        bounty_section="<h2 onclick=\"toggleSection('bb-methodology')\">🎯 Bug Bounty Methodology ▾</h2>
+<div id=\"bb-methodology\" class=\"section-content\">
+  ${bounty_html}
+</div>"
+    fi
+
+    # 🛡️ Modo OPSEC: sección de OPSEC checklist
+    local opsec_section=""
+    if $OPSEC_MODE && declare -F opsec_check_guide &>/dev/null; then
+        local opsec_html
+        opsec_html=$(opsec_check_guide 2>/dev/null || true)
+        opsec_section="<h2 onclick=\"toggleSection('opsec-section')\">🛡️ OPSEC Checklist ▾</h2>
+<div id=\"opsec-section\" class=\"section-content\">
+  ${opsec_html}
+</div>"
+    fi
 
     # ⚠️  Heredoc con delimiter sin comillas para que bash expanda ${AUDIT_TARGET[url]}, etc.
     #     Los ${} de JavaScript (risk_score, risk_label) se escapan con \$ para que NO se expandan
@@ -1606,6 +1775,12 @@ ${js}
       <span class="meta-key">Total:</span><span>$(( ( $(date +%s) - AUDIT_START_TIME ) / 60 ))m</span>
     </div>
   </div>
+
+  <!-- 🐞 MODO BOUNTY: Guías de explotación y metodología -->
+  ${bounty_section}
+
+  <!-- 🛡️ MODO OPSEC: Checklist de anonimato -->
+  ${opsec_section}
 
   <div class="footer">
     Generated by PaginasAudit Cyber Audit Installer v${VERSION:-1.0.0} | $(date '+%Y-%m-%d %H:%M:%S')
@@ -1768,11 +1943,11 @@ audit_url() {
 
     # 3. Run phases
     local phases=("assessment" "malware" "brand" "incident" "sast" "sca")
-    local phase_names=("Assessment: Escaneo activo (Nmap, Nikto, Nuclei...)" 
+    local phase_names=("Assessment: Escaneo activo (Nmap, Nikto, Nuclei, Naabu, FFUF...)" 
                        "Malware: Análisis de dependencias e integridad"
                        "Brand Protection: OSINT y typosquatting"
                        "IR Readiness: Preparación ante incidentes"
-                       "SAST: Análisis estático de código (Semgrep, TruffleHog...)"
+                        "SAST: Análisis estático de código (Semgrep, TruffleHog, Ruff...)"
                        "SCA + SBOM: Composición y dependencias (Trivy, Syft, Grype...)")
 
     # Use dialog gauge if available
@@ -1872,11 +2047,11 @@ audit_menu() {
     echo "  ${FG_BBLK}Esta opción ejecutará las 6 fases de auditoría automáticamente"
     echo "  contra la URL que proporcione:"
     echo ""
-    echo "    1. Assessment       → Nmap, Nikto, WhatWeb, Nuclei, SSL, DNS, fuzzing"
+        echo "    1. Assessment       → Nmap, Nikto, WhatWeb, Nuclei, Naabu, Katana, FFUF, SSL, DNS"
     echo "    2. Malware Analysis → YARA, exiftool, cabeceras de seguridad"
     echo "    3. Brand Protection → dnstwist, theHarvester, sublist3r, HIBP"
     echo "    4. IR Readiness     → Evaluación de preparación ante incidentes"
-    echo "    5. SAST             → Semgrep, TruffleHog, Gitleaks, Bandit"
+        echo "    5. SAST             → Semgrep, TruffleHog, Gitleaks, Bandit, Ruff"
     echo "    6. SCA + SBOM       → Trivy, Dep-Check, Syft, Grype, OSV-Scanner"
     echo ""
     echo "  Tiempo estimado: 15-40 minutos dependiendo del target"

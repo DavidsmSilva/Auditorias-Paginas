@@ -23,9 +23,16 @@ set -euo pipefail
 IFS=$'\n\t'
 
 # ---- Config ---------------------------------------------------------------
-VERSION="2.0.0"
+VERSION="2.1.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export SCRIPT_DIR
+
+# ---- Modes ----------------------------------------------------------------
+# --mode bounty: activa guías de explotación en reportes HTML (bug bounty)
+# --mode opsec:  activa chequeo OPSEC pre-vuelo (anonymity check)
+BOUNTY_MODE=false
+OPSEC_MODE=false
+export BOUNTY_MODE OPSEC_MODE
 
 # ---- Source Libraries -----------------------------------------------------
 source "${SCRIPT_DIR}/lib/colors.sh"
@@ -279,6 +286,7 @@ load_modules() {
         "${SCRIPT_DIR}/modules/04-incident-response.sh"
         "${SCRIPT_DIR}/modules/05-sast.sh"
         "${SCRIPT_DIR}/modules/06-sca-sbom.sh"
+        "${SCRIPT_DIR}/modules/07-exploit-guides.sh"
     )
 
     for mod in "${modules[@]}"; do
@@ -330,7 +338,7 @@ main_menu() {
             "2" "Fase 2: Malware Analysis — Dependencias, webshells, integridad..."
             "3" "Fase 3: Brand Protection — Typosquatting, fugas, reputación..."
             "4" "Fase 4: Incident Response — Forense, tráfico, backups..."
-            "5" "Fase 5: SAST — Semgrep, TruffleHog, Gitleaks, Bandit..."
+            "5" "Fase 5: SAST — Semgrep, TruffleHog, Gitleaks, Bandit, Ruff..."
             "6" "Fase 6: SCA + SBOM — Trivy, Dep-Check, Syft, Grype, OSV..."
             "─" "────────────────────────────────────────────────────────────"
             "I" "⚠  INSTALAR TODO — Las 6 fases completas"
@@ -570,19 +578,23 @@ show_help() {
         echo "    --report          Genera reporte de verificación"
         echo "    --audit URL       Ejecuta auditoría automática contra una URL"
         echo "    --audit URL DIR   Auditoría con directorio de salida personalizado"
+        echo "    --mode MODE       Activa modo específico:"
+        echo "                       bounty  → Guías de explotación en reportes (bug bounty)"
+        echo "                       opsec   → Chequeo OPSEC/anonymity pre-vuelo"
+        echo "                      Ej: ./audit.sh --mode bounty --audit https://ejemplo.com"
         echo ""
         echo "  FASES (Instalación)"
-        echo "    1. Assessment       — 23 herramientas de escaneo y DAST"
+        echo "    1. Assessment       — 29 herramientas de escaneo, fuzzing y DAST"
         echo "    2. Malware Analysis — 16 herramientas de análisis de malware"
         echo "    3. Brand Protection — 11 herramientas de OSINT y marca"
         echo "    4. Incident Response— 19 herramientas de forense y backup"
-        echo "    5. SAST               — 4 herramientas de análisis estático (Semgrep, TruffleHog, Gitleaks, Bandit)"
+        echo "    5. SAST               — 5 herramientas de análisis estático (Semgrep, TruffleHog, Gitleaks, Bandit, Ruff)"
         echo "    6. SCA + SBOM         — 5 herramientas de composición y dependencias (Trivy, Dep-Check, Syft, Grype, OSV)"
         echo ""
         echo "  REPORTES GENERADOS:"
         echo "    · TXT  — Reporte texto plano"
         echo "    · JSON — Reporte estructurado (máquina)"
-        echo "    · HTML — Reporte interactivo con filtros y severidad"
+        echo "    · HTML — Reporte interactivo con filtros y severidad + guías de explotación (modo bounty)"
         echo "    · DOCX — Reporte profesional Word (portada, tabla, gráficos)"
         echo ""
         echo "  AUDITORÍA AUTOMÁTICA (--audit)"
@@ -591,7 +603,7 @@ show_help() {
         echo "    · Malware:    YARA + ExifTool + Análisis de cabeceras de seguridad"
         echo "    · Brand:      dnstwist + theHarvester + Sublist3r + HIBP"
         echo "    · IR:         Evaluación de preparación ante incidentes"
-        echo "    · SAST:       Semgrep + TruffleHog + Gitleaks + Bandit"
+        echo "    · SAST:       Semgrep + TruffleHog + Gitleaks + Bandit + Ruff"
         echo "    · SCA+SBOM:   Trivy + Dependency-Check + Syft + Grype + OSV-Scanner"
         echo "    Genera reportes TXT + JSON + HTML interactivo"
         echo ""
@@ -711,8 +723,29 @@ cli_dispatch() {
             generate_report "${SCRIPT_DIR}/reports/verification-report"
             exit 0
             ;;
+        --mode)
+            local mode_val="${2:-}"
+            if [[ "$mode_val" == "bounty" ]]; then
+                BOUNTY_MODE=true
+                log_info "🐞 MODO BOUNTY ACTIVADO — Reportes con guías de explotación"
+            elif [[ "$mode_val" == "opsec" ]]; then
+                OPSEC_MODE=true
+                log_info "🛡️ MODO OPSEC ACTIVADO — Chequeo de anonimato pre-vuelo"
+            else
+                error "Modo inválido: ${mode_val}. Use: bounty | opsec"
+                exit 1
+            fi
+            # Shift args and continue with next command
+            shift 2
+            cli_dispatch "$@"
+            return
+            ;;
         --audit)
             pre_flight
+            # OPSEC check automático si está activo
+            if $OPSEC_MODE && declare -F opsec_check &>/dev/null; then
+                opsec_check
+            fi
             install_core_deps
             load_modules
             local audit_url="${2:-}"

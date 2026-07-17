@@ -2,7 +2,7 @@
 # ============================================================================
 # 05-sast.sh — Fase 5: SAST — Static Application Security Testing
 # ----------------------------------------------------------------------------
-# Análisis estático de código fuente: Semgrep, TruffleHog, Gitleaks, Bandit.
+# Análisis estático de código fuente: Semgrep, TruffleHog, Gitleaks, Bandit, Ruff.
 # Detecta vulnerabilidades, secretos hardcodeados y malas prácticas en el
 # código fuente de aplicaciones web escaneadas.
 # ============================================================================
@@ -21,13 +21,14 @@ sast_banner() {
     __echo "${FG_RED}${BLD}"  "  ╔══════════════════════════════════════════════════════════════╗"
     __echo "${FG_RED}${BLD}"  "  ║         FASE 5: SAST — STATIC APPLICATION SECURITY TESTING      ║"
     __echo "${FG_RED}${BLD}"  "  ╠══════════════════════════════════════════════════════════════╣"
-    __echo "${FG_RED}"        "  ║  Semgrep · TruffleHog · Gitleaks · Bandit                      ║"
+    __echo "${FG_RED}"        "  ║  Semgrep · TruffleHog · Gitleaks · Bandit · Ruff               ║"
     __echo "${FG_RED}${BLD}"  "  ╚══════════════════════════════════════════════════════════════╝"
     echo ""
     echo "  ${FG_BBLK}Semgrep → Escaneo SAST multi-lenguaje con reglas OSS y personalizadas"
     echo "  TruffleHog → Detección de secretos y credenciales en repositorios"
     echo "  Gitleaks → Escáner de secretos hardcodeados en repositorios Git"
-    echo "  Bandit → Analizador SAST para código Python${RST}"
+    echo "  Bandit → Analizador SAST para código Python"
+    echo "  Ruff → Linter ultra-rápido en Rust con reglas de seguridad (AST-based)${RST}"
     echo ""
 }
 
@@ -92,6 +93,18 @@ sast_install_bandit() {
     verify_tool "bandit" "SAST" "bandit"
 }
 
+sast_install_ruff() {
+    log_section "Instalando Ruff"
+    info "Linter ultra-rápido en Rust con reglas de seguridad (AST-based)"
+    if cmd_exists ruff; then
+        log_ok "Ruff ya está instalado"
+        verify_tool "ruff" "SAST" "ruff"
+        return 0
+    fi
+    pip_install "ruff"
+    verify_tool "ruff" "SAST" "ruff"
+}
+
 # ---- Generic Install Dispatcher -------------------------------------------
 
 sast_install_tool() {
@@ -101,6 +114,7 @@ sast_install_tool() {
         trufflehog) sast_install_trufflehog ;;
         gitleaks)   sast_install_gitleaks ;;
         bandit)     sast_install_bandit ;;
+        ruff)       sast_install_ruff ;;
         *)          log_warn "Fase SAST: herramienta desconocida '${tool}'"; return 1 ;;
     esac
 }

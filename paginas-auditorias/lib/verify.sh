@@ -84,6 +84,10 @@ __smoke_test() {
         trufflehog) trufflehog --help &>/dev/null ;;
         gitleaks)   gitleaks version &>/dev/null ;;
         bandit)     bandit --version &>/dev/null ;;
+        ruff)       ruff --version &>/dev/null ;;
+        naabu)      naabu --version &>/dev/null ;;
+        katana)     katana --version &>/dev/null ;;
+        ffuf)       ffuf --version &>/dev/null ;;
         trivy)      trivy --version &>/dev/null ;;
         syft)       syft --version &>/dev/null ;;
         grype)      grype --version &>/dev/null ;;

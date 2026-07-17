@@ -30,6 +30,9 @@ declare -A TOOL_PHASE=(
     [httpx]="Assessment"
     [subfinder]="Assessment"
     [amass]="Assessment"
+    [naabu]="Assessment"
+    [katana]="Assessment"
+    [ffuf]="Assessment"
     [hydra]="Assessment"
     [john]="Assessment"
     [hashcat]="Assessment"
@@ -93,6 +96,7 @@ declare -A TOOL_PHASE=(
     [trufflehog]="SAST"
     [gitleaks]="SAST"
     [bandit]="SAST"
+    [ruff]="SAST"
 
     # Phase 6: SCA + SBOM — Dependency & Supply Chain Security
     [trivy]="SCA + SBOM"
@@ -122,6 +126,9 @@ declare -A TOOL_PKG=(
     [httpx]="httpx"
     [subfinder]="subfinder"
     [amass]="amass"
+    [naabu]="github.com/projectdiscovery/naabu/v2/cmd/naabu"
+    [katana]="github.com/projectdiscovery/katana/cmd/katana"
+    [ffuf]="github.com/ffuf/ffuf/v2"
     [hydra]="hydra"
     [john]="john"
     [hashcat]="hashcat"
@@ -179,6 +186,7 @@ declare -A TOOL_PKG=(
     [trufflehog]="trufflehog"
     [gitleaks]="github.com/gitleaks/gitleaks/v8"
     [bandit]="bandit"
+    [ruff]="ruff"
 
     # Phase 6: SCA + SBOM
     [trivy]="trivy"
@@ -208,6 +216,9 @@ declare -A TOOL_DESC=(
     [httpx]="Sondeo HTTP proactivo"
     [subfinder]="Descubrimiento de subdominios pasivo"
     [amass]="Mapeo de superficie de ataque (OWASP)"
+    [naabu]="Escáner de puertos rápido (ProjectDiscovery)"
+    [katana]="Crawler web automático (ProjectDiscovery)"
+    [ffuf]="Fuzzing rápido para descubrimiento de contenido web"
     [hydra]="Fuerza bruta de autenticación"
     [john]="John the Ripper — crackeo de hashes"
     [hashcat]="Crackeo de hashes acelerado por GPU"
@@ -268,6 +279,7 @@ declare -A TOOL_DESC=(
     [trufflehog]="Detección de secretos y credenciales en repositorios"
     [gitleaks]="Escáner de secretos hardcodeados en repositorios Git"
     [bandit]="Analizador SAST para Python (PyCQA)"
+    [ruff]="Linter ultra-rápido en Rust con reglas de seguridad (AST-based)"
 
     # Phase 6: SCA + SBOM
     [trivy]="Escáner integral de vulnerabilidades (OS, librerías, IaC)"
@@ -294,6 +306,7 @@ declare -A TOOL_BIN=(
     [trufflehog]="trufflehog"
     [gitleaks]="gitleaks"
     [bandit]="bandit"
+    [ruff]="ruff"
 
     # Phase 6: SCA + SBOM
     [trivy]="trivy"
@@ -324,6 +337,9 @@ declare -A TOOL_METHOD=(
     [httpx]="go"
     [subfinder]="go"
     [amass]="go"
+    [naabu]="go"
+    [katana]="go"
+    [ffuf]="go"
     [hydra]="apt"
     [john]="apt"
     [hashcat]="apt"
@@ -387,6 +403,7 @@ declare -A TOOL_METHOD=(
     [trufflehog]="pip"
     [gitleaks]="go"
     [bandit]="pip"
+    [ruff]="pip"
 
     # Phase 6: SCA + SBOM
     [trivy]="gh_release"
@@ -412,6 +429,7 @@ declare -A TOOL_DEPS=(
     [trufflehog]="python3"
     [gitleaks]="go"
     [bandit]="python3"
+    [ruff]="python3"
 
     # Phase 6: SCA + SBOM
     [trivy]="curl"

@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PaginasAudit — Arquitectura del Sistema</title>
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --surface: #111827;
+    --surface-2: #1a2332;
+    --border: #1e293b;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --accent: #38bdf8;
+    --accent-dim: #0ea5e9;
+    --red: #ef4444;
+    --orange: #f97316;
+    --yellow: #eab308;
+    --green: #22c55e;
+    --blue: #3b82f6;
+    --purple: #8b5cf6;
+    --pink: #ec4899;
+    --teal: #14b8a6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 50%, rgba(56,189,248,0.08) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 50%, rgba(139,92,246,0.08) 0%, transparent 60%),
+      radial-gradient(ellipse at 50% 100%, rgba(34,197,94,0.05) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .hero-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(56,189,248,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56,189,248,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 1.2rem;
+    background: rgba(56,189,248,0.1);
+    border: 1px solid rgba(56,189,248,0.2);
+    border-radius: 9999px;
+    font-size: 0.85rem;
+    color: var(--accent);
+    margin-bottom: 2rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, var(--text) 0%, var(--accent) 50%, var(--purple) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    position: relative;
+    z-index: 1;
+    line-height: 1.1;
+  }
+
+  .hero-sub {
+    font-size: clamp(1rem, 2vw, 1.3rem);
+    color: var(--text-dim);
+    max-width: 640px;
+    margin-top: 1.2rem;
+    position: relative;
+    z-index: 1;
+    line-height: 1.7;
+  }
+
+  .hero-stats {
+    display: flex;
+    gap: 2.5rem;
+    margin-top: 2.5rem;
+    position: relative;
+    z-index: 1;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .hero-stat {
+    text-align: center;
+  }
+
+  .hero-stat-num {
+    font-size: 2.2rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-stat-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .scroll-indicator {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    opacity: 0.6;
+    animation: bounce 2s infinite;
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(8px); }
+  }
+
+  /* ── Sections ── */
+  section {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 5rem 1.5rem;
+  }
+
+  .section-tag {
+    display: inline-block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+  }
+
+  .section-title {
+    font-size: clamp(1.8rem, 3vw, 2.5rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 1rem;
+  }
+
+  .section-desc {
+    color: var(--text-dim);
+    max-width: 720px;
+    font-size: 1.05rem;
+    margin-bottom: 2.5rem;
+  }
+
+  /* ── Architecture Diagram ── */
+  .arch-flow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 3rem 0;
+  }
+
+  .arch-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.8rem;
+  }
+
+  .arch-box {
+    padding: 0.8rem 1.4rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+    min-width: 100px;
+    transition: all 0.2s;
+  }
+
+  .arch-box:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(56,189,248,0.1);
+  }
+
+  .arch-arrow {
+    color: var(--text-dim);
+    font-size: 1.2rem;
+    opacity: 0.5;
+  }
+
+  .arch-label {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.3rem;
+  }
+
+  /* ── Phase Cards ── */
+  .phases-grid {
+    display: grid;
+    gap: 1.5rem;
+    margin-top: 1rem;
+  }
+
+  .phase-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .phase-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+  }
+
+  .phase-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 8px 32px rgba(56,189,248,0.08);
+  }
+
+  .phase-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.2rem;
+    margin-bottom: 1.2rem;
+  }
+
+  .phase-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+  }
+
+  .phase-meta {
+    flex: 1;
+  }
+
+  .phase-number {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.6;
+  }
+
+  .phase-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0.2rem 0 0.3rem;
+  }
+
+  .phase-desc {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+
+  .phase-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 1rem;
+  }
+
+  .phase-tool {
+    padding: 0.25rem 0.7rem;
+    background: var(--surface-2);
+    border-radius: 6px;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    transition: all 0.15s;
+  }
+
+  .phase-tool:hover {
+    color: var(--text);
+    border-color: var(--accent-dim);
+    background: rgba(56,189,248,0.05);
+  }
+
+  .phase-tool-count {
+    font-size: 0.78rem;
+    color: var(--accent);
+    font-weight: 600;
+    margin-left: auto;
+  }
+
+  /* Phase accent colors */
+  .phase-1::before { background: var(--red); }
+  .phase-1 .phase-icon { background: rgba(239,68,68,0.12); color: var(--red); }
+  .phase-2::before { background: var(--yellow); }
+  .phase-2 .phase-icon { background: rgba(234,179,8,0.12); color: var(--yellow); }
+  .phase-3::before { background: var(--green); }
+  .phase-3 .phase-icon { background: rgba(34,197,94,0.12); color: var(--green); }
+  .phase-4::before { background: var(--blue); }
+  .phase-4 .phase-icon { background: rgba(59,130,246,0.12); color: var(--blue); }
+  .phase-5::before { background: var(--purple); }
+  .phase-5 .phase-icon { background: rgba(139,92,246,0.12); color: var(--purple); }
+  .phase-6::before { background: var(--teal); }
+  .phase-6 .phase-icon { background: rgba(20,184,166,0.12); color: var(--teal); }
+
+  /* ── Pipeline ── */
+  .pipeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    margin: 2rem 0;
+  }
+
+  .pipeline-step {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    transition: all 0.2s;
+  }
+
+  .pipeline-step:hover {
+    border-color: var(--accent);
+  }
+
+  .step-num {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    background: rgba(56,189,248,0.1);
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .step-content {
+    flex: 1;
+  }
+
+  .step-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+
+  .step-desc {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+  }
+
+  /* ── Report Formats ── */
+  .reports-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin: 2rem 0;
+  }
+
+  .report-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.2s;
+  }
+
+  .report-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  .report-icon {
+    font-size: 2rem;
+    margin-bottom: 0.6rem;
+  }
+
+  .report-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+
+  .report-ext {
+    font-size: 0.75rem;
+    color: var(--accent);
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-top: 0.2rem;
+  }
+
+  .report-desc {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 0.4rem;
+  }
+
+  /* ── Modules Grid ── */
+  .modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+    margin: 2rem 0;
+  }
+
+  .module-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.2s;
+  }
+
+  .module-card:hover {
+    border-color: var(--accent);
+  }
+
+  .module-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .module-desc {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+
+  .module-files {
+    margin-top: 0.8rem;
+    font-size: 0.75rem;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    color: var(--accent-dim);
+    background: rgba(56,189,248,0.05);
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+  }
+
+  /* ── Security Features ── */
+  .security-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin: 2rem 0;
+  }
+
+  .security-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border-left: 3px solid;
+    transition: all 0.2s;
+  }
+
+  .security-card:hover {
+    transform: translateX(4px);
+  }
+
+  .security-card h4 {
+    font-size: 0.95rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .security-card p {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+
+  /* ── Directory Tree ── */
+  .tree {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.85rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    line-height: 2;
+    overflow-x: auto;
+    margin: 2rem 0;
+  }
+
+  .tree .dir { color: var(--accent); }
+  .tree .file { color: var(--text-dim); }
+  .tree .highlight { color: var(--yellow); font-weight: 600; }
+  .tree .indent { padding-left: 2rem; }
+  .tree .indent2 { padding-left: 4rem; }
+
+  /* ── Finding Engine ── */
+  .sev-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.8rem;
+    margin: 2rem 0;
+  }
+
+  .sev-card {
+    padding: 1.2rem;
+    border-radius: 10px;
+    text-align: center;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    transition: all 0.2s;
+  }
+
+  .sev-card:hover {
+    transform: scale(1.05);
+  }
+
+  .sev-card .emoji { font-size: 1.5rem; }
+  .sev-card .name { font-weight: 700; margin: 0.3rem 0 0.2rem; }
+  .sev-card .points { font-size: 0.75rem; color: var(--text-dim); }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+  }
+
+  footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  footer a:hover {
+    text-decoration: underline;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    section { padding: 3rem 1rem; }
+    .hero-stats { gap: 1.5rem; }
+    .phase-header { flex-direction: column; }
+    .pipeline-step { flex-wrap: wrap; }
+    .tree { font-size: 0.75rem; padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- HERO                                                                    -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-badge">🛡️ &nbsp;Cyber Security Toolkit</div>
+  <h1>PaginasAudit</h1>
+  <p class="hero-sub">
+    Una plataforma modular de auditoría de ciberseguridad para Kali Linux.
+    6 fases, 78 herramientas, 5 formatos de reporte, un solo comando.
+  </p>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="hero-stat-num">6</div>
+      <div class="hero-stat-label">Fases</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">78</div>
+      <div class="hero-stat-label">Herramientas</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">5</div>
+      <div class="hero-stat-label">Formatos de Reporte</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">7K</div>
+      <div class="hero-stat-label">Líneas de Código</div>
+    </div>
+  </div>
+  <div class="scroll-indicator">
+    <span>Desplazá para explorar</span>
+    <span>↓</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- VISIÓN GENERAL                                                          -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-tag">Visión General</div>
+  <h2 class="section-title">Arquitectura del Sistema</h2>
+  <p class="section-desc">
+    PaginasAudit está diseñado como una arquitectura modular en capas. Cada fase
+    es un módulo independiente que puede instalarse, ejecutarse y verificarse de
+    forma aislada. El orquestador central coordina las 6 fases y consolida los
+    resultados en reportes multi-formato.
+  </p>
+
+  <div class="arch-flow">
+    <div class="arch-row">
+      <div class="arch-box" style="border-color:rgba(56,189,248,0.4);">audit.sh<br><span style="font-weight:400;font-size:0.75rem;color:var(--text-dim);">Entry Point</span></div>
+    </div>
+    <div class="arch-arrow">⬇</div>
+    <div class="arch-row">
+      <div class="arch-box" style="border-color:rgba(148,163,184,0.3);">CLI Parser</div>
+      <div class="arch-box" style="border-color:rgba(148,163,184,0.3);">Pre-flight</div>
+      <div class="arch-box" style="border-color:rgba(148,163,184,0.3);">Core Deps</div>
+    </div>
+    <div class="arch-arrow">⬇</div>
+    <div class="arch-row">
+      <div class="arch-box" style="border-color:var(--red);">Módulo 00<br><span style="font-weight:400;font-size:0.7rem;">Pipeline</span></div>
+      <div class="arch-box" style="border-color:var(--red);">Módulo 01<br><span style="font-weight:400;font-size:0.7rem;">Assessment</span></div>
+      <div class="arch-box" style="border-color:var(--yellow);">Módulo 02<br><span style="font-weight:400;font-size:0.7rem;">Malware</span></div>
+      <div class="arch-box" style="border-color:var(--green);">Módulo 03<br><span style="font-weight:400;font-size:0.7rem;">Brand</span></div>
+      <div class="arch-box" style="border-color:var(--blue);">Módulo 04<br><span style="font-weight:400;font-size:0.7rem;">IR</span></div>
+      <div class="arch-box" style="border-color:var(--purple);">Módulo 05<br><span style="font-weight:400;font-size:0.7rem;">SAST</span></div>
+      <div class="arch-box" style="border-color:var(--teal);">Módulo 06<br><span style="font-weight:400;font-size:0.7rem;">SCA+SBOM</span></div>
+    </div>
+    <div class="arch-arrow">⬇</div>
+    <div class="arch-row">
+      <div class="arch-box" style="border-color:rgba(148,163,184,0.3);">Config</div>
+      <div class="arch-box" style="border-color:rgba(148,163,184,0.3);">Librerías</div>
+      <div class="arch-box" style="border-color:rgba(148,163,184,0.3);">Reportes</div>
+    </div>
+    <div class="arch-arrow">⬇</div>
+    <div class="arch-row">
+      <div class="arch-box" style="border-color:var(--green);">build.sh</div>
+      <div class="arch-box" style="border-color:var(--green);">paginas-audit</div>
+      <div class="arch-box" style="border-color:var(--green);">installer.sh</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PIPELINE                                                                -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-tag">Pipeline</div>
+  <h2 class="section-title">Flujo de Auditoría Automática</h2>
+  <p class="section-desc">
+    Cuando ejecutás <code style="background:var(--surface-2);padding:0.1rem 0.4rem;border-radius:4px;">./audit.sh --audit https://ejemplo.com</code>,
+    el sistema orquesta este pipeline completo:
+  </p>
+
+  <div class="pipeline">
+    <div class="pipeline-step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <div class="step-title">Normalización de URL</div>
+        <div class="step-desc">Agrega scheme si falta, extrae dominio, hostname, y base URL</div>
+      </div>
+    </div>
+    <div class="pipeline-step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <div class="step-title">Pre-flight DNS + Reachability</div>
+        <div class="step-desc">Resuelve DNS (con 4 métodos de fallback), detecta WAF/CDN, verifica reachability HTTP, crea estructura de directorios</div>
+      </div>
+    </div>
+    <div class="pipeline-step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <div class="step-title">Fase 1: Assessment</div>
+        <div class="step-desc">WhatWeb · Nmap + NSE · Nikto · SSL/TLS · DNS · Nuclei · WPScan · Gobuster</div>
+      </div>
+    </div>
+    <div class="pipeline-step">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <div class="step-title">Fase 2: Malware Analysis</div>
+        <div class="step-desc">Descarga de recursos · ExifTool · YARA · Análisis de cabeceras de seguridad HTTP</div>
+      </div>
+    </div>
+    <div class="pipeline-step">
+      <div class="step-num">5</div>
+      <div class="step-content">
+        <div class="step-title">Fase 3: Brand Protection</div>
+        <div class="step-desc">dnstwist · theHarvester · Sublist3r · Have I Been Pwned</div>
+      </div>
+    </div>
+    <div class="pipeline-step">
+      <div class="step-num">6</div>
+      <div class="step-content">
+        <div class="step-title">Fase 4: IR Readiness</div>
+        <div class="step-desc">Checklist de preparación ante incidentes (tcpdump, logging, backup, forense, memoria, integridad)</div>
+      </div>
+    </div>
+    <div class="pipeline-step">
+      <div class="step-num">7</div>
+      <div class="step-content">
+        <div class="step-title">Fase 5: SAST</div>
+        <div class="step-desc">Semgrep · TruffleHog · Gitleaks · Bandit</div>
+      </div>
+    </div>
+    <div class="pipeline-step">
+      <div class="step-num">8</div>
+      <div class="step-content">
+        <div class="step-title">Fase 6: SCA + SBOM</div>
+        <div class="step-desc">Trivy · Dependency-Check · Syft → SBOM · Grype → Vulns · OSV-Scanner</div>
+      </div>
+    </div>
+    <div class="pipeline-step">
+      <div class="step-num">9</div>
+      <div class="step-content">
+        <div class="step-title">Generación de Reportes</div>
+        <div class="step-desc">Consolidación de hallazgos → TXT · JSON · HTML · DOCX · PDF</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- LAS 6 FASES                                                             -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-tag">Fases de Auditoría</div>
+  <h2 class="section-title">Las 6 Fases del Toolkit</h2>
+  <p class="section-desc">
+    Cada fase es un módulo independiente con su propio instalador, menú interactivo,
+    y conjunto de herramientas. Se pueden instalar por separado o todas juntas.
+  </p>
+
+  <div class="phases-grid">
+    <!-- Fase 1 -->
+    <div class="phase-card phase-1">
+      <div class="phase-header">
+        <div class="phase-icon">🔍</div>
+        <div class="phase-meta">
+          <div class="phase-number">Fase 1</div>
+          <div class="phase-name">Assessment</div>
+          <div class="phase-desc">Escaneo activo, DAST y revisión de superficie de red. La fase más pesada con 23 herramientas.</div>
+        </div>
+        <div class="phase-tool-count">23 tools</div>
+      </div>
+      <div class="phase-tools">
+        <span class="phase-tool">Nmap</span><span class="phase-tool">Nikto</span><span class="phase-tool">SQLmap</span>
+        <span class="phase-tool">WhatWeb</span><span class="phase-tool">WPScan</span><span class="phase-tool">Dirb</span>
+        <span class="phase-tool">Gobuster</span><span class="phase-tool">ZAP</span><span class="phase-tool">BurpSuite</span>
+        <span class="phase-tool">DNSRecon</span><span class="phase-tool">DNSEnum</span><span class="phase-tool">Whois</span>
+        <span class="phase-tool">SSLScan</span><span class="phase-tool">testssl</span><span class="phase-tool">Nuclei</span>
+        <span class="phase-tool">httpx</span><span class="phase-tool">Subfinder</span><span class="phase-tool">Amass</span>
+        <span class="phase-tool">Hydra</span><span class="phase-tool">John</span><span class="phase-tool">Hashcat</span>
+        <span class="phase-tool">curl</span><span class="phase-tool">wget</span>
+      </div>
+    </div>
+
+    <!-- Fase 2 -->
+    <div class="phase-card phase-2">
+      <div class="phase-header">
+        <div class="phase-icon">🦠</div>
+        <div class="phase-meta">
+          <div class="phase-number">Fase 2</div>
+          <div class="phase-name">Malware Analysis</div>
+          <div class="phase-desc">Inspección de dependencias, búsqueda de webshells, monitoreo de integridad y detección de rootkits.</div>
+        </div>
+        <div class="phase-tool-count">16 tools</div>
+      </div>
+      <div class="phase-tools">
+        <span class="phase-tool">Lynis</span><span class="phase-tool">Chkrootkit</span><span class="phase-tool">Rkhunter</span>
+        <span class="phase-tool">ClamAV</span><span class="phase-tool">AIDE</span><span class="phase-tool">Snyk</span>
+        <span class="phase-tool">npm</span><span class="phase-tool">Python3</span><span class="phase-tool">Binwalk</span>
+        <span class="phase-tool">Strings</span><span class="phase-tool">ExifTool</span><span class="phase-tool">YARA</span>
+        <span class="phase-tool">python-docx</span><span class="phase-tool">peepdf</span><span class="phase-tool">Radare2</span>
+        <span class="phase-tool">jq</span>
+      </div>
+    </div>
+
+    <!-- Fase 3 -->
+    <div class="phase-card phase-3">
+      <div class="phase-header">
+        <div class="phase-icon">🏷️</div>
+        <div class="phase-meta">
+          <div class="phase-number">Fase 3</div>
+          <div class="phase-name">Brand Protection</div>
+          <div class="phase-desc">Detección de typosquatting, búsqueda de fugas de credenciales, OSINT de superficie pública.</div>
+        </div>
+        <div class="phase-tool-count">11 tools</div>
+      </div>
+      <div class="phase-tools">
+        <span class="phase-tool">dnstwist</span><span class="phase-tool">theHarvester</span><span class="phase-tool">Sublist3r</span>
+        <span class="phase-tool">Holehe</span><span class="phase-tool">EmailFinder</span><span class="phase-tool">GHunt</span>
+        <span class="phase-tool">Social-Analyzer</span><span class="phase-tool">WhatsMyName</span><span class="phase-tool">HIBP</span>
+        <span class="phase-tool">SpiderFoot</span><span class="phase-tool">yq</span>
+      </div>
+    </div>
+
+    <!-- Fase 4 -->
+    <div class="phase-card phase-4">
+      <div class="phase-header">
+        <div class="phase-icon">🚨</div>
+        <div class="phase-meta">
+          <div class="phase-number">Fase 4</div>
+          <div class="phase-name">Incident Response</div>
+          <div class="phase-desc">Forensia, análisis de tráfico, recuperación de backups y preparación ante incidentes.</div>
+        </div>
+        <div class="phase-tool-count">19 tools</div>
+      </div>
+      <div class="phase-tools">
+        <span class="phase-tool">Wireshark</span><span class="phase-tool">tcpdump</span><span class="phase-tool">tshark</span>
+        <span class="phase-tool">Volatility</span><span class="phase-tool">bulk_extractor</span><span class="phase-tool">Guymager</span>
+        <span class="phase-tool">ddrescue</span><span class="phase-tool">Sleuth Kit</span><span class="phase-tool">Autopsy</span>
+        <span class="phase-tool">Foremost</span><span class="phase-tool">Scalpel</span><span class="phase-tool">MagicRescue</span>
+        <span class="phase-tool">TestDisk</span><span class="phase-tool">PhotoRec</span><span class="phase-tool">rsync</span>
+        <span class="phase-tool">Tripwire</span><span class="phase-tool">Duplicity</span><span class="phase-tool">Borg</span>
+        <span class="phase-tool">dcfldd</span>
+      </div>
+    </div>
+
+    <!-- Fase 5 -->
+    <div class="phase-card phase-5">
+      <div class="phase-header">
+        <div class="phase-icon">📄</div>
+        <div class="phase-meta">
+          <div class="phase-number">Fase 5</div>
+          <div class="phase-name">SAST — Static Application Security Testing</div>
+          <div class="phase-desc">Análisis estático de código: detecta vulnerabilidades, secretos hardcodeados y malas prácticas.</div>
+        </div>
+        <div class="phase-tool-count">4 tools</div>
+      </div>
+      <div class="phase-tools">
+        <span class="phase-tool">Semgrep</span><span class="phase-tool">TruffleHog</span>
+        <span class="phase-tool">Gitleaks</span><span class="phase-tool">Bandit</span>
+      </div>
+    </div>
+
+    <!-- Fase 6 -->
+    <div class="phase-card phase-6">
+      <div class="phase-header">
+        <div class="phase-icon">📦</div>
+        <div class="phase-meta">
+          <div class="phase-number">Fase 6</div>
+          <div class="phase-name">SCA + SBOM — Supply Chain Security</div>
+          <div class="phase-desc">Análisis de composición de software, generación de SBOM y detección de vulnerabilidades en dependencias.</div>
+        </div>
+        <div class="phase-tool-count">5 tools</div>
+      </div>
+      <div class="phase-tools">
+        <span class="phase-tool">Trivy</span><span class="phase-tool">Dependency-Check</span>
+        <span class="phase-tool">Syft</span><span class="phase-tool">Grype</span>
+        <span class="phase-tool">OSV-Scanner</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- FINDING ENGINE                                                          -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-tag">Motor de Hallazgos</div>
+  <h2 class="section-title">Finding Engine &amp; Risk Scoring</h2>
+  <p class="section-desc">
+    Cada fase de auditoría alimenta un motor central de hallazgos con severidades.
+    Al finalizar, se calcula un <strong>Risk Score</strong> ponderado y se generan
+    reportes en 5 formatos.
+  </p>
+
+  <div class="sev-grid">
+    <div class="sev-card" style="border-color:var(--red);">
+      <div class="emoji">🛑</div>
+      <div class="name" style="color:var(--red);">CRITICAL</div>
+      <div class="points">10 pts</div>
+    </div>
+    <div class="sev-card" style="border-color:var(--orange);">
+      <div class="emoji">⚠️</div>
+      <div class="name" style="color:var(--orange);">HIGH</div>
+      <div class="points">5 pts</div>
+    </div>
+    <div class="sev-card" style="border-color:var(--yellow);">
+      <div class="emoji">⚡</div>
+      <div class="name" style="color:var(--yellow);">MEDIUM</div>
+      <div class="points">2 pts</div>
+    </div>
+    <div class="sev-card" style="border-color:var(--accent);">
+      <div class="emoji">ℹ️</div>
+      <div class="name" style="color:var(--accent);">LOW</div>
+      <div class="points">1 pt</div>
+    </div>
+    <div class="sev-card" style="border-color:var(--text-dim);">
+      <div class="emoji">📌</div>
+      <div class="name" style="color:var(--text-dim);">INFO</div>
+      <div class="points">0 pts</div>
+    </div>
+  </div>
+
+  <div class="reports-grid">
+    <div class="report-card">
+      <div class="report-icon">📄</div>
+      <div class="report-name">Texto Plano</div>
+      <div class="report-ext">.txt</div>
+      <div class="report-desc">Lectura rápida en terminal, ideal para compartir por texto</div>
+    </div>
+    <div class="report-card">
+      <div class="report-icon">📋</div>
+      <div class="report-name">Estructurado</div>
+      <div class="report-ext">.json</div>
+      <div class="report-desc">Procesamiento automatizado, integraciones con otras herramientas</div>
+    </div>
+    <div class="report-card">
+      <div class="report-icon">🌐</div>
+      <div class="report-name">Interactivo</div>
+      <div class="report-ext">.html</div>
+      <div class="report-desc">Filtros por severidad, secciones colapsables, modo oscuro</div>
+    </div>
+    <div class="report-card">
+      <div class="report-icon">📝</div>
+      <div class="report-name">Word Profesional</div>
+      <div class="report-ext">.docx</div>
+      <div class="report-desc">Portada, tabla de contenidos, hallazgos y recomendaciones</div>
+    </div>
+    <div class="report-card">
+      <div class="report-icon">📕</div>
+      <div class="report-name">PDF Profesional</div>
+      <div class="report-ext">.pdf</div>
+      <div class="report-desc">HTML convertido a PDF con WeasyPrint, listo para entregar</div>
+    </div>
+  </div>
+
+  <div class="security-card" style="border-color:var(--yellow);margin-top:0.5rem;">
+    <h4>🧮 Risk Score</h4>
+    <p>
+      <code style="background:var(--surface-2);padding:0.1rem 0.4rem;border-radius:4px;">CRITICAL×10 + HIGH×5 + MEDIUM×2 + LOW×1</code><br>
+      <span style="color:var(--text-dim);font-size:0.85rem;">
+        &lt;10 Bajo · &gt;10 Medio · &gt;25 Alto · &gt;50 Crítico
+      </span>
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- ESTRUCTURA                                                              -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-tag">Estructura</div>
+  <h2 class="section-title">Organización del Proyecto</h2>
+  <p class="section-desc">
+    El código fuente está organizado en módulos, librerías y configuración,
+    siguiendo una arquitectura limpia y mantenible.
+  </p>
+
+  <div class="tree">
+    <span class="highlight">paginas-auditorias/</span>
+    <div class="indent"><span class="highlight">audit.sh</span>              <span class="file" style="color:var(--text-dim);">← Entry point principal (CLI + TUI)</span></div>
+    <div class="indent"><span class="highlight">.version</span>              <span class="file" style="color:var(--text-dim);">← v2.0.0</span></div>
+    <br>
+    <div class="indent"><span class="dir">config/</span></div>
+    <div class="indent2"><span class="highlight">tools.db</span>             <span class="file" style="color:var(--text-dim);">← Registro central de 78 herramientas</span></div>
+    <div class="indent2"><span class="highlight">settings.cfg</span>          <span class="file" style="color:var(--text-dim);">← Configuración del usuario</span></div>
+    <br>
+    <div class="indent"><span class="dir">lib/</span></div>
+    <div class="indent2"><span class="file">colors.sh</span>                 <span class="file" style="color:var(--text-dim);">← Paleta de colores ANSI</span></div>
+    <div class="indent2"><span class="file">logging.sh</span>                 <span class="file" style="color:var(--text-dim);">← Sistema de logging estructurado</span></div>
+    <div class="indent2"><span class="file">ui.sh</span>                     <span class="file" style="color:var(--text-dim);">← Menús TUI con dialog/fallback texto</span></div>
+    <div class="indent2"><span class="file">utils.sh</span>                   <span class="file" style="color:var(--text-dim);">← Utilidades core (OS, pkg mgr, red, etc.)</span></div>
+    <div class="indent2"><span class="file">verify.sh</span>                  <span class="file" style="color:var(--text-dim);">← Verificador de herramientas instaladas</span></div>
+    <div class="indent2"><span class="file">docx_report.py</span>            <span class="file" style="color:var(--text-dim);">← Generador de reportes DOCX</span></div>
+    <br>
+    <div class="indent"><span class="dir">modules/</span></div>
+    <div class="indent2"><span class="highlight">00-automated-audit.sh</span> <span class="file" style="color:var(--text-dim);">← Orquestador pipeline + reportes (1929 líneas)</span></div>
+    <div class="indent2"><span class="file">01-assessment.sh</span>          <span class="file" style="color:var(--text-dim);">← Fase 1: 23 herramientas</span></div>
+    <div class="indent2"><span class="file">02-malware.sh</span>             <span class="file" style="color:var(--text-dim);">← Fase 2: 16 herramientas</span></div>
+    <div class="indent2"><span class="file">03-brand-protection.sh</span>    <span class="file" style="color:var(--text-dim);">← Fase 3: 11 herramientas</span></div>
+    <div class="indent2"><span class="file">04-incident-response.sh</span>   <span class="file" style="color:var(--text-dim);">← Fase 4: 19 herramientas</span></div>
+    <div class="indent2"><span class="file">05-sast.sh</span>                <span class="file" style="color:var(--text-dim);">← Fase 5: 4 herramientas SAST</span></div>
+    <div class="indent2"><span class="file">06-sca-sbom.sh</span>            <span class="file" style="color:var(--text-dim);">← Fase 6: 5 herramientas SCA+SBOM</span></div>
+    <br>
+    <div class="indent"><span class="dir">logs/</span>                       <span class="file" style="color:var(--text-dim);">← Logs de instalación</span></div>
+    <div class="indent"><span class="dir">reports/</span>                    <span class="file" style="color:var(--text-dim);">← Reportes generados</span></div>
+  </div>
+
+  <p style="margin-top:1.5rem;color:var(--text-dim);font-size:0.9rem;">
+    En la raíz del repo también están <strong>build.sh</strong> (genera el bundle autocontenido),
+    <strong>installer.sh</strong> (instalador one-command), y <strong>paginas-audit</strong>
+    (ejecutable autocontenido de 7,044 líneas).
+  </p>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- LIBRERÍAS Y MÓDULOS                                                    -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-tag">Componentes</div>
+  <h2 class="section-title">Librerías Compartidas</h2>
+  <p class="section-desc">
+    El sistema se apoya en 6 librerías Bash y 1 script Python que proveen
+    toda la funcionalidad horizontal.
+  </p>
+
+  <div class="modules-grid">
+    <div class="module-card">
+      <div class="module-title">🎨 colors.sh</div>
+      <div class="module-desc">Definiciones de colores ANSI y funciones __echo para output consistente en toda la aplicación.</div>
+      <div class="module-files">lib/colors.sh</div>
+    </div>
+    <div class="module-card">
+      <div class="module-title">📝 logging.sh</div>
+      <div class="module-desc">Logging estructurado con niveles DEBUG/INFO/WARN/ERROR, soporte JSON y rotación de archivos.</div>
+      <div class="module-files">lib/logging.sh</div>
+    </div>
+    <div class="module-card">
+      <div class="module-title">🖥️ ui.sh</div>
+      <div class="module-desc">Menús interactivos con dialog (TUI) con fallback automático a modo texto cuando dialog no está disponible.</div>
+      <div class="module-files">lib/ui.sh</div>
+    </div>
+    <div class="module-card">
+      <div class="module-title">🔧 utils.sh</div>
+      <div class="module-desc">Utilidades core: detección de OS, gestor de paquetes abstracto (apt/pacman/dnf/pip/npm/snap/go/cargo), checks de red/disco/memoria, helpers de ejecución (retry, timeout, temp dirs).</div>
+      <div class="module-files">lib/utils.sh (654 líneas)</div>
+    </div>
+    <div class="module-card">
+      <div class="module-title">✅ verify.sh</div>
+      <div class="module-desc">Verificador de herramientas instaladas: chequea binary, versión, y genera reporte de estado con métricas de pass/fail/skip.</div>
+      <div class="module-files">lib/verify.sh</div>
+    </div>
+    <div class="module-card">
+      <div class="module-title">📄 docx_report.py</div>
+      <div class="module-desc">Generador de reportes DOCX profesionales con python-docx: portada, tabla de contenidos, hallazgos por severidad, gráficos y recomendaciones.</div>
+      <div class="module-files">lib/docx_report.py</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- CONFIGURACIÓN                                                           -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-tag">Configuración</div>
+  <h2 class="section-title">Tools DB &amp; Settings</h2>
+  <p class="section-desc">
+    El corazón del sistema es <strong>tools.db</strong>, un registro centralizado
+    que define cada herramienta con sus metadatos: fase, paquete, binario, método
+    de instalación, descripción y dependencias.
+  </p>
+
+  <div class="arch-flow" style="gap:0.2rem;">
+    <div class="arch-row">
+      <div class="arch-box" style="border-color:var(--yellow);font-size:0.75rem;padding:0.4rem 0.8rem;">
+        TOOL_PHASE[nmap]="Assessment"
+      </div>
+      <div class="arch-box" style="border-color:var(--yellow);font-size:0.75rem;padding:0.4rem 0.8rem;">
+        TOOL_METHOD[nuclei]="go"
+      </div>
+      <div class="arch-box" style="border-color:var(--yellow);font-size:0.75rem;padding:0.4rem 0.8rem;">
+        TOOL_PKG[trivy]="trivy"
+      </div>
+    </div>
+    <div class="arch-row">
+      <div class="arch-box" style="border-color:var(--yellow);font-size:0.75rem;padding:0.4rem 0.8rem;">
+        TOOL_DEPS[semgrep]="python3"
+      </div>
+      <div class="arch-box" style="border-color:var(--yellow);font-size:0.75rem;padding:0.4rem 0.8rem;">
+        TOOL_BIN[testssl]="testssl.sh"
+      </div>
+      <div class="arch-box" style="border-color:var(--yellow);font-size:0.75rem;padding:0.4rem 0.8rem;">
+        TOOL_DESC[nmap]="Escáner de puertos..."
+      </div>
+    </div>
+    <div class="arch-label" style="margin-top:0.5rem;">7 arrays asociativos = 78 herramientas con metadatos completos</div>
+  </div>
+
+  <div class="modules-grid" style="margin-top:2rem;">
+    <div class="module-card">
+      <div class="module-title">⚙️ settings.cfg</div>
+      <div class="module-desc">
+        Configuración del usuario: log level, timeouts, auto-install de dependencias,
+        skip de tools instaladas, formato de reportes, mirror APT personalizado.
+      </div>
+      <div class="module-files">config/settings.cfg</div>
+    </div>
+    <div class="module-card">
+      <div class="module-title">🗂️ tools.db</div>
+      <div class="module-desc">
+        Registro maestro con 7 arrays: TOOL_PHASE, TOOL_PKG, TOOL_DESC, TOOL_BIN,
+        TOOL_METHOD, TOOL_DEPS. Cada herramienta tiene entrada en todos los arrays.
+      </div>
+      <div class="module-files">config/tools.db (512 líneas)</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- SEGURIDAD                                                               -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-tag">Seguridad</div>
+  <h2 class="section-title">Supply Chain Hardening</h2>
+  <p class="section-desc">
+    PaginasAudit implementa múltiples capas de seguridad en la cadena de
+    suministro, siguiendo la regla de Security Due Diligence pre-instalación.
+  </p>
+
+  <div class="security-grid">
+    <div class="security-card" style="border-color:var(--orange);">
+      <h4>🔒 npm Hardening Global</h4>
+      <p>
+        <code>ignore-scripts=true</code> bloquea lifecycle hooks maliciosos.
+        <code>audit-signatures</code> verifica proveniencia.
+        <code>package-lock=true</code> fija versiones.
+      </p>
+    </div>
+    <div class="security-card" style="border-color:var(--red);">
+      <h4>🔗 Hash Pinning (SRI)</h4>
+      <p>
+        Antes de instalar un paquete npm, obtiene el hash de integridad del registro
+        y lo verifica post-instalación. Si no coincide → alerta inmediata.
+      </p>
+    </div>
+    <div class="security-card" style="border-color:var(--purple);">
+      <h4>📌 Version Pinning</h4>
+      <p>
+        Trivy pinneado a v0.69.3 (CVE-2026-33634 en v0.69.4).<br>
+        Syft >= 1.42.3 (CVE-2026-33481).<br>
+        Semgrep >= 1.157.0 (CVE-2026-34073).
+      </p>
+    </div>
+    <div class="security-card" style="border-color:var(--yellow);">
+      <h4>🔍 npm Audit Verification</h4>
+      <p>
+        Verifica el origen del paquete npm via <code>apt-cache policy</code>.
+        Si no viene del repositorio oficial de Debian/Kali → warning.
+      </p>
+    </div>
+    <div class="security-card" style="border-color:var(--green);">
+      <h4>🧪 Vulnerability Audit</h4>
+      <p>
+        Post-instalación corre <code>npm audit --audit-level=high</code> y
+        reporta vulnerabilidades. Fallos en npm audit signatures elevan alertas.
+      </p>
+    </div>
+    <div class="security-card" style="border-color:var(--blue);">
+      <h4>🛡️ Deb packaging verification</h4>
+      <p>
+        Trivy se instala desde GitHub release DEB con verificación explícita
+        del archivo descargado antes de instalarlo con dpkg.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- BUILD & DEPLOY                                                         -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-tag">Build &amp; Deploy</div>
+  <h2 class="section-title">Delivery del Producto</h2>
+  <p class="section-desc">
+    El proyecto soporta 3 modos de ejecución: código fuente, bundle autocontenido
+    e instalador one-command.
+  </p>
+
+  <div class="phases-grid">
+    <div class="phase-card phase-2" style="border-left:3px solid var(--yellow);">
+      <div class="phase-header">
+        <div class="phase-icon" style="background:rgba(234,179,8,0.12);color:var(--yellow);">📁</div>
+        <div class="phase-meta">
+          <div class="phase-name">Modo Fuente</div>
+          <div class="phase-desc">
+            Clonás el repo y ejecutás <strong>bash paginas-auditorias/audit.sh</strong>.<br>
+            <span style="font-size:0.8rem;color:var(--text-dim);">Ideal para desarrollo, debug y contribuciones.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-card phase-3" style="border-left:3px solid var(--green);">
+      <div class="phase-header">
+        <div class="phase-icon" style="background:rgba(34,197,94,0.12);color:var(--green);">📦</div>
+        <div class="phase-meta">
+          <div class="phase-name">Bundle Autocontenido</div>
+          <div class="phase-desc">
+            <strong>build.sh</strong> genera <strong>paginas-audit</strong> (7,044 líneas),
+            un ejecutable único sin dependencias externas de archivos. Se deploya con
+            <strong>installer.sh</strong> a <code>/usr/local/bin/paginas-audit</code>.<br>
+            <span style="font-size:0.8rem;color:var(--text-dim);">Ideal para producción: un solo binario, cero dependencias de carpetas.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-card phase-1" style="border-left:3px solid var(--red);">
+      <div class="phase-header">
+        <div class="phase-icon" style="background:rgba(239,68,68,0.12);color:var(--red);">🚀</div>
+        <div class="phase-meta">
+          <div class="phase-name">One-Command Install</div>
+          <div class="phase-desc">
+            <code>curl -sL https://raw.githubusercontent.com/DavidsmSilva/Auditorias-Paginas/main/installer.sh | bash</code><br>
+            Clona el repo, construye el bundle, lo instala en el sistema y abre el menú interactivo.<br>
+            <span style="font-size:0.8rem;color:var(--text-dim);">Ideal para usuarios finales: un comando y ya está.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- FOOTER                                                                  -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<footer>
+  <p>PaginasAudit v2.0.0 — Cyber Security Audit Toolkit</p>
+  <p style="margin-top:0.3rem;">
+    <a href="https://github.com/DavidsmSilva/Auditorias-Paginas" target="_blank" rel="noopener">github.com/DavidsmSilva/Auditorias-Paginas</a>
+  </p>
+  <p style="margin-top:0.5rem;opacity:0.5;">Documento generado el 17 de julio de 2026</p>
+</footer>
+
+</body>
+</html>

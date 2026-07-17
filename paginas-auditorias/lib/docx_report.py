@@ -671,7 +671,7 @@ class AuditDocxReport:
             'Brand Protection': ['dnstwist', 'theharvester', 'sublist3r', 'hibp-check'],
             'Incident Response': ['tcpdump', 'tshark', 'volatility', 'sleuthkit',
                                   'aide', 'rsync'],
-            'SAST': ['semgrep', 'trufflehog', 'gitleaks', 'bandit'],
+            'SAST': ['semgrep', 'trufflehog', 'gitleaks', 'bandit', 'ruff'],
             'SCA + SBOM': ['trivy', 'dependency-check', 'syft', 'grype', 'osv-scanner'],
         }
 
