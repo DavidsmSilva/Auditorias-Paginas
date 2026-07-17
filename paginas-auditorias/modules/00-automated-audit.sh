@@ -167,10 +167,10 @@ audit_normalize_url() {
 
 # ---- Pre-flight: DNS & Reachability --------------------------------------
 audit_pre_flight() {
-    log_section "PRE-FLIGHT — VERIFICACIÓN DEL TARGET"
+    log_section_start "PRE-FLIGHT — VERIFICACIÓN DEL TARGET"
     local domain="${AUDIT_TARGET[domain]}"
 
-    info "Resolviendo DNS para ${domain}..."
+    log_info "Resolviendo DNS para ${domain}..."
 
     # 🛡️ DNS resolution — MUST return a real IPv4 address, NOT a CNAME
     #    Previous bug: dig +short returned CNAME (cdn1.wixdns.net) instead of IP,
@@ -236,12 +236,13 @@ audit_pre_flight() {
     mkdir -p "${AUDIT_DIR}/resources"
     mkdir -p "${AUDIT_DIR}/reports"
 
+    log_section_end
     return 0
 }
 
 # ---- Phase 1: Assessment -------------------------------------------------
 audit_assessment() {
-    log_section "FASE 1: ASSESSMENT — ESCANEO ACTIVO"
+    log_section_start "FASE 1: ASSESSMENT — ESCANEO ACTIVO"
     local start_time
     start_time=$(date +%s)
 
@@ -250,7 +251,7 @@ audit_assessment() {
     local url="${AUDIT_TARGET[url]}"
 
     # ----- 1.1 WhatWeb — Technology fingerprinting -----
-    info "[1/11] WhatWeb — Identificando tecnologías..."
+    log_info "[1/11] WhatWeb — Identificando tecnologías..."
     if cmd_exists whatweb; then
         timed_run 120 whatweb --aggression 1 --color=never "$url" 2>/dev/null \
             > "${AUDIT_DIR}/scans/web/whatweb.txt" || true
@@ -270,11 +271,11 @@ audit_assessment() {
             fi
         fi
     else
-        warn "WhatWeb no instalado — saltando"
+        log_warn "WhatWeb no instalado — saltando"
     fi
 
     # ----- 1.2 Naabu — Fast port scan (ProjectDiscovery) -----
-    info "[2/11] Naabu — Escaneo rápido de puertos..."
+    log_info "[2/11] Naabu — Escaneo rápido de puertos..."
     if cmd_exists naabu; then
         timed_run 120 naabu -host "$domain" -silent \
             -o "${AUDIT_DIR}/scans/nmap/naabu-ports.txt" 2>/dev/null || true
@@ -292,11 +293,11 @@ audit_assessment() {
             log_ok "Naabu: sin puertos abiertos detectados (o firewall bloqueando)"
         fi
     else
-        warn "Naabu no instalado — saltando escaneo rápido de puertos"
+        log_warn "Naabu no instalado — saltando escaneo rápido de puertos"
     fi
 
     # ----- 1.3 Nmap — Port scan + NSE scripts -----
-    info "[3/11] Nmap — Escaneo de puertos y servicios..."
+    log_info "[3/11] Nmap — Escaneo de puertos y servicios..."
     if cmd_exists nmap; then
         # Quick port scan first
         timed_run 180 nmap -T4 --open -sV --reason \
@@ -331,7 +332,7 @@ audit_assessment() {
             fi
 
             # NSE vulnerability scripts
-            info "Ejecutando scripts NSE de vulnerabilidad..."
+            log_info "Ejecutando scripts NSE de vulnerabilidad..."
             local nse_scripts=$(IFS=,; echo "${AUDIT_NSE_SCRIPTS[*]}")
             timed_run 300 nmap -T4 --script "${nse_scripts}" \
                 -oN "${AUDIT_DIR}/scans/nmap/nse-vuln.txt" \
@@ -348,17 +349,17 @@ audit_assessment() {
                 fi
             fi
         else
-            warn "Nmap no produjo resultados — posible bloqueo de red/firewall"
+            log_warn "Nmap no produjo resultados — posible bloqueo de red/firewall"
             add_finding "MEDIUM" "Nmap" "Sin respuesta de Nmap — firewall detectado" \
                 "El escaneo de puertos no obtuvo respuesta. Firewall o WAF bloqueando." \
                 "Intentar escaneo con -Pn o desde otra red."
         fi
     else
-        warn "Nmap no instalado — saltando escaneo de puertos"
+        log_warn "Nmap no instalado — saltando escaneo de puertos"
     fi
 
     # ----- 1.4 Nikto — Web vulnerability scanner -----
-    info "[4/11] Nikto — Escaneo de vulnerabilidades web..."
+    log_info "[4/11] Nikto — Escaneo de vulnerabilidades web..."
     if cmd_exists nikto; then
         # 🛡️ WAF/CDN detection: si el target usa Wix/Cloudflare/ Akamai,
         #    Nikto es significativamente más lento. Timeout aumentado a 600s.
@@ -393,11 +394,11 @@ audit_assessment() {
             fi
         fi
     else
-        warn "Nikto no instalado — saltando"
+        log_warn "Nikto no instalado — saltando"
     fi
 
     # ----- 1.5 SSL/TLS Scan -----
-    info "[5/11] SSL/TLS — Evaluación de seguridad..."
+    log_info "[5/11] SSL/TLS — Evaluación de seguridad..."
     if [[ "${AUDIT_TARGET[scheme]}" == "https" ]]; then
         # sslscan
         if cmd_exists sslscan; then
@@ -427,14 +428,14 @@ audit_assessment() {
             log_ok "testssl.sh completado"
         fi
     else
-        info "HTTP (no HTTPS) — saltando análisis SSL/TLS"
+        log_info "HTTP (no HTTPS) — saltando análisis SSL/TLS"
         add_finding "HIGH" "SSL" "Sitio en HTTP sin HTTPS" \
             "El sitio no usa HTTPS. Todo el tráfico viaja sin cifrar." \
             "Implementar HTTPS con Let's Encrypt. Redirigir HTTP→HTTPS."
     fi
 
     # ----- 1.6 DNS Enumeration -----
-    info "[6/11] DNS — Enumeración de registros..."
+    log_info "[6/11] DNS — Enumeración de registros..."
     if cmd_exists dnsrecon; then
         timed_run 120 dnsrecon -d "$domain" \
             > "${AUDIT_DIR}/scans/dns/dnsrecon.txt" 2>/dev/null || true
@@ -457,7 +458,7 @@ audit_assessment() {
     fi
 
     # ----- 1.7 Nuclei — Template-based scanning -----
-    info "[7/11] Nuclei — Escaneo basado en templates..."
+    log_info "[7/11] Nuclei — Escaneo basado en templates..."
     if cmd_exists nuclei; then
         timed_run 300 nuclei -u "$url" -severity low,medium,high,critical \
             -o "${AUDIT_DIR}/scans/web/nuclei.txt" \
@@ -487,11 +488,11 @@ audit_assessment() {
             log_ok "Nuclei: sin hallazgos"
         fi
     else
-        warn "Nuclei no instalado — saltando"
+        log_warn "Nuclei no instalado — saltando"
     fi
 
     # ----- 1.8 WPScan (conditional) -----
-    info "[8/11] WPScan — Escaneo WordPress (si aplica)..."
+    log_info "[8/11] WPScan — Escaneo WordPress (si aplica)..."
     if cmd_exists wpscan && grep -qi "wordpress" "${AUDIT_DIR}/scans/web/whatweb.txt" 2>/dev/null; then
         timed_run 300 wpscan --url "$url" --no-update \
             --output "${AUDIT_DIR}/scans/web/wpscan.txt" 2>/dev/null || true
@@ -504,11 +505,11 @@ audit_assessment() {
             fi
         fi
     else
-        info "  WordPress no detectado — saltando WPScan"
+        log_info "  WordPress no detectado — saltando WPScan"
     fi
 
     # ----- 1.9 Katana — Web crawler (ProjectDiscovery) -----
-    info "[9/11] Katana — Crawleando el sitio web..."
+    log_info "[9/11] Katana — Crawleando el sitio web..."
     if cmd_exists katana; then
         mkdir -p "${AUDIT_DIR}/scans/web"
         timed_run 120 katana -u "$url" -d 2 -silent -aff \
@@ -529,11 +530,11 @@ audit_assessment() {
             log_ok "Katana: sin endpoints descubiertos"
         fi
     else
-        warn "Katana no instalado — saltando crawleo web"
+        log_warn "Katana no instalado — saltando crawleo web"
     fi
 
     # ----- 1.10 FFUF — Fast content discovery -----
-    info "[10/11] FFUF — Fuzzing rápido de contenido..."
+    log_info "[10/11] FFUF — Fuzzing rápido de contenido..."
     if cmd_exists ffuf; then
         local wordlist=""
         for wl in "${AUDIT_WORDLIST_DIR}/dirb/common.txt" \
@@ -560,17 +561,17 @@ audit_assessment() {
                 fi
             fi
         else
-            warn "No se encontró wordlist para FFUF"
+            log_warn "No se encontró wordlist para FFUF"
             add_finding "MEDIUM" "FFUF" "Wordlist no encontrada para fuzzing" \
                 "No se encontró wordlist para fuzzing con FFUF." \
                 "Instalar: sudo apt install dirb (incluye wordlists)"
         fi
     else
-        warn "FFUF no instalado — saltando fuzzing de contenido"
+        log_warn "FFUF no instalado — saltando fuzzing de contenido"
     fi
 
     # ----- 1.11 Gobuster — Directory fuzzing (legacy) -----
-    info "[11/11] Gobuster — Fuzzing de directorios (legacy)..."
+    log_info "[11/11] Gobuster — Fuzzing de directorios (legacy)..."
     if cmd_exists gobuster; then
         local wordlist=""
         # Find a suitable wordlist
@@ -597,7 +598,7 @@ audit_assessment() {
                     "Revisar que ninguna ruta descubierta exponga información sensible."
             fi
         else
-            warn "No se encontró wordlist para Gobuster"
+            log_warn "No se encontró wordlist para Gobuster"
             add_finding "MEDIUM" "Gobuster" "Wordlist no encontrada" \
                 "No se encontró wordlist para fuzzing de directorios." \
                 "Instalar: sudo apt install dirb (incluye wordlists)"
@@ -608,11 +609,12 @@ audit_assessment() {
     end_time=$(date +%s)
     AUDIT_TIMING[assessment]=$(( end_time - start_time ))
     log_ok "Assessment completado en $(( AUDIT_TIMING[assessment] / 60 ))m $(( AUDIT_TIMING[assessment] % 60 ))s"
+    log_section_end
 }
 
 # ---- Phase 2: Malware Analysis -------------------------------------------
 audit_malware() {
-    log_section "FASE 2: ANÁLISIS DE MALWARE"
+    log_section_start "FASE 2: ANÁLISIS DE MALWARE"
     local start_time
     start_time=$(date +%s)
 
@@ -620,7 +622,7 @@ audit_malware() {
     local domain="${AUDIT_TARGET[domain]}"
 
     # ----- 2.1 Resource Download & Analysis -----
-    info "[1/4] Descargando recursos de la página principal..."
+    log_info "[1/4] Descargando recursos de la página principal..."
     # Download homepage and extract resources
     curl -sL --max-time 30 "$url" > "${AUDIT_DIR}/resources/homepage.html" 2>/dev/null || true
 
@@ -643,7 +645,7 @@ audit_malware() {
     fi
 
     # ----- 2.2 ExifTool — Metadata analysis -----
-    info "[2/4] ExifTool — Analizando metadatos de imágenes..."
+    log_info "[2/4] ExifTool — Analizando metadatos de imágenes..."
     if cmd_exists exiftool; then
         if [[ -f "${AUDIT_DIR}/resources/img-urls.txt" ]]; then
             local img_dir="${AUDIT_DIR}/resources/images"
@@ -683,7 +685,7 @@ audit_malware() {
     fi
 
     # ----- 2.3 YARA — Pattern scanning on resources -----
-    info "[3/4] YARA — Escaneo de patrones en recursos..."
+    log_info "[3/4] YARA — Escaneo de patrones en recursos..."
     if cmd_exists yara; then
         # Check for YARA rules
         local yara_rules=""
@@ -712,12 +714,12 @@ audit_malware() {
                 log_ok "YARA: sin coincidencias"
             fi
         else
-            warn "No se encontraron reglas YARA"
+            log_warn "No se encontraron reglas YARA"
         fi
     fi
 
     # ----- 2.4 Security Headers Analysis -----
-    info "[4/4] Análisis de cabeceras de seguridad HTTP..."
+    log_info "[4/4] Análisis de cabeceras de seguridad HTTP..."
     if [[ -f "${AUDIT_DIR}/http-headers.txt" ]]; then
         local headers
         headers=$(cat "${AUDIT_DIR}/http-headers.txt")
@@ -764,11 +766,12 @@ audit_malware() {
     end_time=$(date +%s)
     AUDIT_TIMING[malware]=$(( end_time - start_time ))
     log_ok "Malware Analysis completado en $(( AUDIT_TIMING[malware] / 60 ))m $(( AUDIT_TIMING[malware] % 60 ))s"
+    log_section_end
 }
 
 # ---- Phase 3: Brand Protection -------------------------------------------
 audit_brand() {
-    log_section "FASE 3: PROTECCIÓN DE MARCA"
+    log_section_start "FASE 3: PROTECCIÓN DE MARCA"
     local start_time
     start_time=$(date +%s)
 
@@ -776,7 +779,7 @@ audit_brand() {
     local url="${AUDIT_TARGET[url]}"
 
     # ----- 3.1 dnstwist — Typosquatting -----
-    info "[1/4] dnstwist — Detectando typosquatting..."
+    log_info "[1/4] dnstwist — Detectando typosquatting..."
     if cmd_exists dnstwist; then
         timed_run 180 dnstwist --registered "$domain" \
             > "${AUDIT_DIR}/osint/dnstwist.txt" 2>/dev/null || true
@@ -794,11 +797,11 @@ audit_brand() {
             fi
         fi
     else
-        warn "dnstwist no instalado — saltando"
+        log_warn "dnstwist no instalado — saltando"
     fi
 
     # ----- 3.2 theHarvester — OSINT -----
-    info "[2/4] theHarvester — Recolección OSINT..."
+    log_info "[2/4] theHarvester — Recolección OSINT..."
     if cmd_exists theharvester; then
         timed_run 180 theharvester -d "$domain" -b all \
             -f "${AUDIT_DIR}/osint/theharvester.html" 2>/dev/null || true
@@ -821,11 +824,11 @@ audit_brand() {
             fi
         fi
     else
-        warn "theHarvester no instalado — saltando"
+        log_warn "theHarvester no instalado — saltando"
     fi
 
     # ----- 3.3 Sublist3r — Subdomain enumeration -----
-    info "[3/4] Sublist3r — Enumeración de subdominios..."
+    log_info "[3/4] Sublist3r — Enumeración de subdominios..."
     if cmd_exists sublist3r; then
         timed_run 180 sublist3r -d "$domain" \
             -o "${AUDIT_DIR}/osint/sublist3r.txt" 2>/dev/null || true
@@ -846,11 +849,11 @@ audit_brand() {
             fi
         fi
     else
-        warn "Sublist3r no instalado — saltando"
+        log_warn "Sublist3r no instalado — saltando"
     fi
 
     # ----- 3.4 Credential leak check (via HIBP) -----
-    info "[4/4] Have I Been Pwned — Verificación de fugas..."
+    log_info "[4/4] Have I Been Pwned — Verificación de fugas..."
     if cmd_exists hibp-check || cmd_exists hibp || cmd_exists pyhibp; then
         if [[ -f "${AUDIT_DIR}/osint/theharvester-emails.txt" ]]; then
             local check_tool
@@ -871,19 +874,20 @@ audit_brand() {
             fi
         fi
     else
-        info "  HIBP CLI no disponible — saltando verificación de fugas"
-        info "  Instalar con: pip install hibp-cli"
+        log_info "  HIBP CLI no disponible — saltando verificación de fugas"
+        log_info "  Instalar con: pip install hibp-cli"
     fi
 
     local end_time
     end_time=$(date +%s)
     AUDIT_TIMING[brand]=$(( end_time - start_time ))
     log_ok "Brand Protection completado en $(( AUDIT_TIMING[brand] / 60 ))m $(( AUDIT_TIMING[brand] % 60 ))s"
+    log_section_end
 }
 
 # ---- Phase 4: Incident Response Readiness ---------------------------------
 audit_incident() {
-    log_section "FASE 4: INCIDENT RESPONSE — EVALUACIÓN DE PREPARACIÓN"
+    log_section_start "FASE 4: INCIDENT RESPONSE — EVALUACIÓN DE PREPARACIÓN"
     local start_time
     start_time=$(date +%s)
 
@@ -982,12 +986,13 @@ audit_incident() {
     end_time=$(date +%s)
     AUDIT_TIMING[incident]=$(( end_time - start_time ))
     log_ok "IR Readiness completado en $(( AUDIT_TIMING[incident] / 60 ))m $(( AUDIT_TIMING[incident] % 60 ))s"
+    log_section_end
 }
 
 # ---- Phase 5: SAST ----------------------------------------------------------
 
 audit_sast() {
-    log_section "FASE 5: SAST — STATIC APPLICATION SECURITY TESTING"
+    log_section_start "FASE 5: SAST — STATIC APPLICATION SECURITY TESTING"
     local start_time
     start_time=$(date +%s)
 
@@ -995,7 +1000,7 @@ audit_sast() {
     local url="${AUDIT_TARGET[url]}"
 
     # ----- 5.1 Semgrep — Multi-language SAST scanning -----
-    info "[1/5] Semgrep — Escaneo SAST multi-lenguaje..."
+    log_info "[1/5] Semgrep — Escaneo SAST multi-lenguaje..."
     if cmd_exists semgrep; then
         # Try to scan downloaded resources first, fallback to URL
         local semgrep_target="${AUDIT_DIR}/resources"
@@ -1039,7 +1044,7 @@ audit_sast() {
     echo ""
 
     # ----- 5.2 TruffleHog — Secret scanning -----
-    info "[2/5] TruffleHog — Buscando secretos..."
+    log_info "[2/5] TruffleHog — Buscando secretos..."
     if cmd_exists trufflehog; then
         # TruffleHog filesystem scan on downloaded resources
         if [[ -d "${AUDIT_DIR}/resources" ]] && [[ "$(find "${AUDIT_DIR}/resources" -type f 2>/dev/null | wc -l)" -gt 0 ]]; then
@@ -1071,7 +1076,7 @@ audit_sast() {
     echo ""
 
     # ----- 5.3 Gitleaks — Git secret scanning -----
-    info "[3/5] Gitleaks — Buscando secretos en repositorios Git..."
+    log_info "[3/5] Gitleaks — Buscando secretos en repositorios Git..."
     if cmd_exists gitleaks; then
         # Check if there's a git repo in resources
         if [[ -d "${AUDIT_DIR}/resources/.git" ]]; then
@@ -1102,7 +1107,7 @@ audit_sast() {
     echo ""
 
     # ----- 5.4 Bandit — Python SAST -----
-    info "[4/5] Bandit — Analizando código Python..."
+    log_info "[4/5] Bandit — Analizando código Python..."
     if cmd_exists bandit; then
         local py_files
         py_files=$(find "${AUDIT_DIR}/resources" -name "*.py" -type f 2>/dev/null | head -20)
@@ -1137,7 +1142,7 @@ audit_sast() {
     echo ""
 
     # ----- 5.5 Ruff — Python Linter ultra-rápido -----
-    info "[5/5] Ruff — Analizando código Python con reglas de seguridad..."
+    log_info "[5/5] Ruff — Analizando código Python con reglas de seguridad..."
     if cmd_exists ruff; then
         local py_files
         py_files=$(find "${AUDIT_DIR}/resources" -name "*.py" -type f 2>/dev/null | head -20)
@@ -1174,12 +1179,13 @@ audit_sast() {
     end_time=$(date +%s)
     AUDIT_TIMING[sast]=$(( end_time - start_time ))
     log_ok "SAST completado en $(( AUDIT_TIMING[sast] / 60 ))m $(( AUDIT_TIMING[sast] % 60 ))s"
+    log_section_end
 }
 
 # ---- Phase 6: SCA + SBOM ----------------------------------------------------
 
 audit_sca() {
-    log_section "FASE 6: SCA + SBOM — DEPENDENCY & SUPPLY CHAIN SECURITY"
+    log_section_start "FASE 6: SCA + SBOM — DEPENDENCY & SUPPLY CHAIN SECURITY"
     local start_time
     start_time=$(date +%s)
 
@@ -1187,7 +1193,7 @@ audit_sca() {
     local url="${AUDIT_TARGET[url]}"
 
     # ----- 6.1 Trivy — Filesystem vulnerability scan -----
-    info "[1/5] Trivy — Escaneo de vulnerabilidades..."
+    log_info "[1/5] Trivy — Escaneo de vulnerabilidades..."
     if cmd_exists trivy; then
         local trivy_target="${AUDIT_DIR}/resources"
         if [[ -d "$trivy_target" ]] && [[ "$(find "$trivy_target" -type f 2>/dev/null | wc -l)" -gt 0 ]]; then
@@ -1220,7 +1226,7 @@ audit_sca() {
     echo ""
 
     # ----- 6.2 OWASP Dependency-Check -----
-    info "[2/5] OWASP Dependency-Check — Análisis de dependencias..."
+    log_info "[2/5] OWASP Dependency-Check — Análisis de dependencias..."
     if cmd_exists dependency-check && cmd_exists java; then
         if [[ -d "${AUDIT_DIR}/resources" ]]; then
             timed_run 300 dependency-check --scan "${AUDIT_DIR}/resources" \
@@ -1252,7 +1258,7 @@ except:
     echo ""
 
     # ----- 6.3 Syft — SBOM Generation -----
-    info "[3/5] Syft — Generando SBOM (CycloneDX + SPDX)..."
+    log_info "[3/5] Syft — Generando SBOM (CycloneDX + SPDX)..."
     if cmd_exists syft; then
         if [[ -d "${AUDIT_DIR}/resources" ]] && [[ "$(find "${AUDIT_DIR}/resources" -type f 2>/dev/null | wc -l)" -gt 0 ]]; then
             # CycloneDX format
@@ -1291,7 +1297,7 @@ except:
     echo ""
 
     # ----- 6.4 Grype — Vulnerability scan on SBOM -----
-    info "[4/5] Grype — Escaneo de vulnerabilidades sobre SBOM..."
+    log_info "[4/5] Grype — Escaneo de vulnerabilidades sobre SBOM..."
     if cmd_exists grype; then
         if [[ -s "${AUDIT_DIR}/sbom/sbom-cyclonedx.json" ]]; then
             timed_run 180 grype "${AUDIT_DIR}/sbom/sbom-cyclonedx.json" \
@@ -1332,7 +1338,7 @@ except:
     echo ""
 
     # ----- 6.5 OSV-Scanner -----
-    info "[5/5] OSV-Scanner — Escaneo adicional con base OSV.dev..."
+    log_info "[5/5] OSV-Scanner — Escaneo adicional con base OSV.dev..."
     if cmd_exists osv-scanner; then
         if [[ -s "${AUDIT_DIR}/sbom/sbom-cyclonedx.json" ]]; then
             timed_run 120 osv-scanner --sbom="${AUDIT_DIR}/sbom/sbom-cyclonedx.json" \
@@ -1373,6 +1379,7 @@ except:
     end_time=$(date +%s)
     AUDIT_TIMING[sca]=$(( end_time - start_time ))
     log_ok "SCA + SBOM completado en $(( AUDIT_TIMING[sca] / 60 ))m $(( AUDIT_TIMING[sca] % 60 ))s"
+    log_section_end
 }
 
 # ---- Report Generator ----------------------------------------------------
@@ -1931,7 +1938,7 @@ audit_url() {
 
     # 2. Pre-flight
     if ! audit_pre_flight; then
-        error "Pre-flight falló — abortando auditoría"
+        log_error "Pre-flight falló — abortando auditoría"
         add_finding "CRITICAL" "System" "Pre-flight falló — target no accesible" \
             "No se pudo verificar el target. La auditoría no pudo completarse." \
             "Verificar que la URL sea correcta y el target esté accesible."
@@ -1961,9 +1968,9 @@ audit_url() {
                 --gauge "Ejecutando: ${phase_names[$((current-1))]}\n\nFase ${current}/${phase_count}" \
                 8 70 0 2>/dev/null || true
         else
-            info "=========================================="
-            info "FASE ${current}/${phase_count}: ${phase_names[$((current-1))]}"
-            info "=========================================="
+            log_info "=========================================="
+            log_info "FASE ${current}/${phase_count}: ${phase_names[$((current-1))]}"
+            log_info "=========================================="
         fi
         case "$phase" in
             assessment) audit_assessment ;;
@@ -1979,46 +1986,35 @@ audit_url() {
 
     # 4. Generate consolidated report
     echo ""
-    log_section "GENERANDO REPORTES"
-    info "Consolidando hallazgos de las 6 fases..."
+    log_section_start "GENERANDO REPORTES"
+    log_info "Consolidando hallazgos de las 6 fases..."
 
     audit_generate_report_txt || log_warn "Reporte TXT no generado"
     audit_generate_report_json || log_warn "Reporte JSON no generado"
     audit_generate_report_html || log_warn "Reporte HTML no generado"
     audit_generate_report_docx || log_warn "Reporte DOCX no generado (python-docx?)"
     audit_generate_report_pdf || log_warn "Reporte PDF no generado (weasyprint?)"
+    log_section_end
 
     # 5. Print summary
-    echo ""
-    __echo "${COLOR_HEADER}" "  ╔══════════════════════════════════════════════════════════════╗"
-    __echo "${COLOR_HEADER}" "  ║           AUDITORÍA COMPLETADA — RESUMEN                     ║"
-    __echo "${COLOR_HEADER}" "  ╚══════════════════════════════════════════════════════════════╝"
-    echo ""
-
     local total=$(findings_total)
     local crit=$(findings_count "CRITICAL")
     local high=$(findings_count "HIGH")
     local med=$(findings_count "MEDIUM")
     local low=$(findings_count "LOW")
     local duration=$(( AUDIT_END_TIME - AUDIT_START_TIME ))
+    local time_str="$(printf '%02d:%02d' $((duration/60)) $((duration%60)))"
 
-    printf "  ${FG_BWHT}%-25s${RST} %s\n" "Target:" "${AUDIT_TARGET[url]}"
-    printf "  ${FG_BWHT}%-25s${RST} %s\n" "Dominio:" "${AUDIT_TARGET[domain]}"
-    printf "  ${FG_BWHT}%-25s${RST} %s\n" "IP:" "${AUDIT_TARGET[ip]}"
-    printf "  ${FG_BWHT}%-25s${RST} %d\n" "Total hallazgos:" "$total"
-    [[ $crit -gt 0 ]] && printf "  ${FG_RED}%-25s${RST} %d\n" "🛑 CRÍTICOS:" "$crit"
-    [[ $high -gt 0 ]] && printf "  ${FG_RED}%-25s${RST} %d\n" "⚠️  ALTOS:" "$high"
-    [[ $med  -gt 0 ]] && printf "  ${FG_YLW}%-25s${RST} %d\n" "⚡ MEDIOS:" "$med"
-    [[ $low  -gt 0 ]] && printf "  ${FG_BBLU}%-25s${RST} %d\n" "ℹ️  BAJOS:" "$low"
-    printf "  ${FG_BWHT}%-25s${RST} %02d:%02d\n" "Duración:" "$((duration/60))" "$((duration%60))"
-    echo ""
-
-    kv "Reporte TXT"  "${AUDIT_DIR}/reports/audit-report.txt"
-    kv "Reporte JSON" "${AUDIT_DIR}/reports/audit-report.json"
-    kv "Reporte HTML" "${AUDIT_DIR}/reports/audit-report.html"
-    kv "Reporte DOCX" "${AUDIT_DIR}/reports/audit-report.docx"
-    kv "Reporte PDF"  "${AUDIT_DIR}/reports/audit-report.pdf"
-    echo ""
+    log_summary "📊  RESUMEN DE AUDITORÍA"
+    log_summary_row "${COLOR_STATUS_OK}"  "🎯" "Target"     "${AUDIT_TARGET[url]}"
+    log_summary_row "${COLOR_STATUS_OK}"  "🌐" "Dominio"    "${AUDIT_TARGET[domain]}"
+    log_summary_row "${COLOR_STATUS_OK}"  "📡" "IP"         "${AUDIT_TARGET[ip]}"
+    log_summary_row "${COLOR_STATUS_OK}"  "📊" "Hallazgos"  "$total total"
+    [[ $crit -gt 0 ]] && log_summary_row "${FG_RED}${BLD}" "🛑" "Críticos" "$crit"
+    [[ $high -gt 0 ]] && log_summary_row "${FG_RED}"       "⚠️" "Altos"    "$high"
+    [[ $med  -gt 0 ]] && log_summary_row "${FG_YLW}${BLD}" "⚡" "Medios"   "$med"
+    [[ $low  -gt 0 ]] && log_summary_row "${FG_BBLU}${BLD}" "ℹ️" "Bajos"  "$low"
+    log_summary_end "$time_str"
 
     if __dialog_avail; then
         local msg="Auditoría completada contra: ${AUDIT_TARGET[url]}\n\n"
@@ -2067,9 +2063,9 @@ audit_menu() {
     done
 
     if [[ ${#missing_tools[@]} -gt 0 ]]; then
-        warn "Herramientas no instaladas: ${missing_tools[*]}"
-        warn "La auditoría saltará las herramientas faltantes."
-        warn "Use el menú principal para instalar las fases primero."
+        log_warn "Herramientas no instaladas: ${missing_tools[*]}"
+        log_warn "La auditoría saltará las herramientas faltantes."
+        log_warn "Use el menú principal para instalar las fases primero."
         echo ""
         if ! ui_confirm "Auditoría" "¿Continuar de todas formas?"; then
             return 0

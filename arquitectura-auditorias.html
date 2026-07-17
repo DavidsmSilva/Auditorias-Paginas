@@ -602,7 +602,7 @@
   <h1>PaginasAudit</h1>
   <p class="hero-sub">
     Una plataforma modular de auditoría de ciberseguridad para Kali Linux.
-    6 fases, 78 herramientas, 5 formatos de reporte, un solo comando.
+    6 fases + 1 módulo bounty, 82 herramientas, 5 formatos de reporte, un solo comando.
   </p>
   <div class="hero-stats">
     <div class="hero-stat">
@@ -610,7 +610,7 @@
       <div class="hero-stat-label">Fases</div>
     </div>
     <div class="hero-stat">
-      <div class="hero-stat-num">78</div>
+      <div class="hero-stat-num">82</div>
       <div class="hero-stat-label">Herramientas</div>
     </div>
     <div class="hero-stat">
@@ -618,7 +618,7 @@
       <div class="hero-stat-label">Formatos de Reporte</div>
     </div>
     <div class="hero-stat">
-      <div class="hero-stat-num">7K</div>
+      <div class="hero-stat-num">8K</div>
       <div class="hero-stat-label">Líneas de Código</div>
     </div>
   </div>
@@ -660,6 +660,11 @@
       <div class="arch-box" style="border-color:var(--blue);">Módulo 04<br><span style="font-weight:400;font-size:0.7rem;">IR</span></div>
       <div class="arch-box" style="border-color:var(--purple);">Módulo 05<br><span style="font-weight:400;font-size:0.7rem;">SAST</span></div>
       <div class="arch-box" style="border-color:var(--teal);">Módulo 06<br><span style="font-weight:400;font-size:0.7rem;">SCA+SBOM</span></div>
+      <div class="arch-box" style="border-color:var(--pink);">Módulo 07<br><span style="font-weight:400;font-size:0.7rem;">Exploit Guides</span></div>
+    </div>
+    <div class="arch-row" style="margin-top:0.3rem;">
+      <div class="arch-box" style="border-color:var(--pink);font-size:0.7rem;padding:0.3rem 0.6rem;background:rgba(236,72,153,0.05);">--mode bounty</div>
+      <div class="arch-box" style="border-color:var(--orange);font-size:0.7rem;padding:0.3rem 0.6rem;background:rgba(249,115,22,0.05);">--mode opsec</div>
     </div>
     <div class="arch-arrow">⬇</div>
     <div class="arch-row">
@@ -706,7 +711,7 @@
       <div class="step-num">3</div>
       <div class="step-content">
         <div class="step-title">Fase 1: Assessment</div>
-        <div class="step-desc">WhatWeb · Nmap + NSE · Nikto · SSL/TLS · DNS · Nuclei · WPScan · Gobuster</div>
+        <div class="step-desc">WhatWeb · Naabu · Nmap + NSE · Nikto · SSL/TLS · DNS · Nuclei · WPScan · Katana · FFUF · Gobuster</div>
       </div>
     </div>
     <div class="pipeline-step">
@@ -734,7 +739,7 @@
       <div class="step-num">7</div>
       <div class="step-content">
         <div class="step-title">Fase 5: SAST</div>
-        <div class="step-desc">Semgrep · TruffleHog · Gitleaks · Bandit</div>
+        <div class="step-desc">Semgrep · TruffleHog · Gitleaks · Bandit · Ruff</div>
       </div>
     </div>
     <div class="pipeline-step">
@@ -773,14 +778,15 @@
         <div class="phase-meta">
           <div class="phase-number">Fase 1</div>
           <div class="phase-name">Assessment</div>
-          <div class="phase-desc">Escaneo activo, DAST y revisión de superficie de red. La fase más pesada con 23 herramientas.</div>
+          <div class="phase-desc">Escaneo activo, DAST, fuzzing y revisión de superficie de red. La fase más pesada con 26 herramientas.</div>
         </div>
-        <div class="phase-tool-count">23 tools</div>
+        <div class="phase-tool-count">26 tools</div>
       </div>
       <div class="phase-tools">
-        <span class="phase-tool">Nmap</span><span class="phase-tool">Nikto</span><span class="phase-tool">SQLmap</span>
-        <span class="phase-tool">WhatWeb</span><span class="phase-tool">WPScan</span><span class="phase-tool">Dirb</span>
-        <span class="phase-tool">Gobuster</span><span class="phase-tool">ZAP</span><span class="phase-tool">BurpSuite</span>
+        <span class="phase-tool">Nmap</span><span class="phase-tool">Naabu</span><span class="phase-tool">Nikto</span>
+        <span class="phase-tool">SQLmap</span><span class="phase-tool">WhatWeb</span><span class="phase-tool">WPScan</span>
+        <span class="phase-tool">Dirb</span><span class="phase-tool">Gobuster</span><span class="phase-tool">FFUF</span>
+        <span class="phase-tool">Katana</span><span class="phase-tool">ZAP</span><span class="phase-tool">BurpSuite</span>
         <span class="phase-tool">DNSRecon</span><span class="phase-tool">DNSEnum</span><span class="phase-tool">Whois</span>
         <span class="phase-tool">SSLScan</span><span class="phase-tool">testssl</span><span class="phase-tool">Nuclei</span>
         <span class="phase-tool">httpx</span><span class="phase-tool">Subfinder</span><span class="phase-tool">Amass</span>
@@ -860,11 +866,12 @@
           <div class="phase-name">SAST — Static Application Security Testing</div>
           <div class="phase-desc">Análisis estático de código: detecta vulnerabilidades, secretos hardcodeados y malas prácticas.</div>
         </div>
-        <div class="phase-tool-count">4 tools</div>
+        <div class="phase-tool-count">5 tools</div>
       </div>
       <div class="phase-tools">
         <span class="phase-tool">Semgrep</span><span class="phase-tool">TruffleHog</span>
         <span class="phase-tool">Gitleaks</span><span class="phase-tool">Bandit</span>
+        <span class="phase-tool" style="border-color:var(--accent);">Ruff</span>
       </div>
     </div>
 
@@ -886,6 +893,11 @@
       </div>
     </div>
   </div>
+
+  <p class="section-desc" style="margin-top:2rem;font-size:0.9rem;">
+    Bonus: activá <strong>--mode bounty</strong> para el <strong>Módulo 07 — Exploit Guides</strong>
+    (1,905 líneas, 20+ tipos de vulnerabilidad con árboles de decisión y comandos de explotación).
+  </p>
 </section>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
@@ -986,10 +998,10 @@
   <div class="tree">
     <span class="highlight">paginas-auditorias/</span>
     <div class="indent"><span class="highlight">audit.sh</span>              <span class="file" style="color:var(--text-dim);">← Entry point principal (CLI + TUI)</span></div>
-    <div class="indent"><span class="highlight">.version</span>              <span class="file" style="color:var(--text-dim);">← v2.0.0</span></div>
+    <div class="indent"><span class="highlight">.version</span>              <span class="file" style="color:var(--text-dim);">← v2.1.0</span></div>
     <br>
     <div class="indent"><span class="dir">config/</span></div>
-    <div class="indent2"><span class="highlight">tools.db</span>             <span class="file" style="color:var(--text-dim);">← Registro central de 78 herramientas</span></div>
+    <div class="indent2"><span class="highlight">tools.db</span>             <span class="file" style="color:var(--text-dim);">← Registro central de 82 herramientas (530 líneas)</span></div>
     <div class="indent2"><span class="highlight">settings.cfg</span>          <span class="file" style="color:var(--text-dim);">← Configuración del usuario</span></div>
     <br>
     <div class="indent"><span class="dir">lib/</span></div>
@@ -1001,22 +1013,23 @@
     <div class="indent2"><span class="file">docx_report.py</span>            <span class="file" style="color:var(--text-dim);">← Generador de reportes DOCX</span></div>
     <br>
     <div class="indent"><span class="dir">modules/</span></div>
-    <div class="indent2"><span class="highlight">00-automated-audit.sh</span> <span class="file" style="color:var(--text-dim);">← Orquestador pipeline + reportes (1929 líneas)</span></div>
-    <div class="indent2"><span class="file">01-assessment.sh</span>          <span class="file" style="color:var(--text-dim);">← Fase 1: 23 herramientas</span></div>
+    <div class="indent2"><span class="highlight">00-automated-audit.sh</span> <span class="file" style="color:var(--text-dim);">← Orquestador pipeline + reportes</span></div>
+    <div class="indent2"><span class="file">01-assessment.sh</span>          <span class="file" style="color:var(--text-dim);">← Fase 1: 26 herramientas</span></div>
     <div class="indent2"><span class="file">02-malware.sh</span>             <span class="file" style="color:var(--text-dim);">← Fase 2: 16 herramientas</span></div>
     <div class="indent2"><span class="file">03-brand-protection.sh</span>    <span class="file" style="color:var(--text-dim);">← Fase 3: 11 herramientas</span></div>
     <div class="indent2"><span class="file">04-incident-response.sh</span>   <span class="file" style="color:var(--text-dim);">← Fase 4: 19 herramientas</span></div>
-    <div class="indent2"><span class="file">05-sast.sh</span>                <span class="file" style="color:var(--text-dim);">← Fase 5: 4 herramientas SAST</span></div>
+    <div class="indent2"><span class="file">05-sast.sh</span>                <span class="file" style="color:var(--text-dim);">← Fase 5: 5 herramientas (Semgrep, TruffleHog, Gitleaks, Bandit, Ruff)</span></div>
     <div class="indent2"><span class="file">06-sca-sbom.sh</span>            <span class="file" style="color:var(--text-dim);">← Fase 6: 5 herramientas SCA+SBOM</span></div>
+    <div class="indent2"><span class="file">07-exploit-guides.sh</span>      <span class="file" style="color:var(--text-dim);">← Guías de explotación (modo bounty)</span></div>
     <br>
-    <div class="indent"><span class="dir">logs/</span>                       <span class="file" style="color:var(--text-dim);">← Logs de instalación</span></div>
+    <div class="indent"><span class="dir">logs/</span>                       <span class="file" style="color:var(--text-dim);">← Logs de instalación + consent log</span></div>
     <div class="indent"><span class="dir">reports/</span>                    <span class="file" style="color:var(--text-dim);">← Reportes generados</span></div>
   </div>
 
   <p style="margin-top:1.5rem;color:var(--text-dim);font-size:0.9rem;">
-    En la raíz del repo también están <strong>build.sh</strong> (genera el bundle autocontenido),
-    <strong>installer.sh</strong> (instalador one-command), y <strong>paginas-audit</strong>
-    (ejecutable autocontenido de 7,044 líneas).
+    En la raíz del repo también están <strong>installer.sh</strong> (instalador one-command),
+    <strong>build.sh</strong> (script de build) y <strong>arquitectura-auditorias.html</strong>
+    (esta página).
   </p>
 </section>
 
@@ -1100,7 +1113,8 @@
         TOOL_DESC[nmap]="Escáner de puertos..."
       </div>
     </div>
-    <div class="arch-label" style="margin-top:0.5rem;">7 arrays asociativos = 78 herramientas con metadatos completos</div>
+    <div class="arch-label" style="margin-top:0.5rem;">7 arrays asociativos = 82 herramientas con metadatos completos</div>
+    <div class="arch-label" style="margin-top:0.2rem;color:var(--green);font-size:0.75rem;">Ejemplo: Ruff (linter Rust) agregado en v2.1.0 como 5ta tool SAST</div>
   </div>
 
   <div class="modules-grid" style="margin-top:2rem;">
@@ -1117,8 +1131,9 @@
       <div class="module-desc">
         Registro maestro con 7 arrays: TOOL_PHASE, TOOL_PKG, TOOL_DESC, TOOL_BIN,
         TOOL_METHOD, TOOL_DEPS. Cada herramienta tiene entrada en todos los arrays.
+        82 herramientas registradas (530 líneas).
       </div>
-      <div class="module-files">config/tools.db (512 líneas)</div>
+      <div class="module-files">config/tools.db</div>
     </div>
   </div>
 </section>
@@ -1177,6 +1192,65 @@
       <p>
         Trivy se instala desde GitHub release DEB con verificación explícita
         del archivo descargado antes de instalarlo con dpkg.
+      </p>
+    </div>
+  </div>
+
+  <h3 style="margin-top:2.5rem;font-size:1.2rem;color:var(--accent);">🛡️ Seguridad del Operador</h3>
+  <p class="section-desc" style="margin-bottom:1.5rem;">
+    Protecciones integradas para la persona que ejecuta la herramienta, pensadas
+    para entornos de bug bounty y auditoría profesional.
+  </p>
+
+  <div class="security-grid">
+    <div class="security-card" style="border-color:var(--red);">
+      <h4>📄 Consent Log Digital</h4>
+      <p>
+        Antes de cada <code>--audit</code>, la herramienta pide confirmación de
+        autorización por escrito del propietario del target. Sin eso, no arranca.
+        Guarda un registro firmado en <code>logs/consent.log</code> con timestamp,
+        operador, target y referencia del cliente (permisos 600).
+      </p>
+    </div>
+    <div class="security-card" style="border-color:var(--orange);">
+      <h4>🛡️ OPSEC Auto-Prompt</h4>
+      <p>
+        Verifica VPN activa, DNS leak, IPv6 y Tor antes de escanear. Si no se
+        activó <code>--mode opsec</code>, el tool pregunta automáticamente si
+        querés ejecutar el chequeo antes de arrancar la auditoría.
+      </p>
+    </div>
+    <div class="security-card" style="border-color:var(--yellow);">
+      <h4>🔒 Findings Vault</h4>
+      <p>
+        Al finalizar cada auditoría, todos los archivos con hallazgos sensibles
+        (resultados de escaneo, secretos, credenciales) se protegen con permisos
+        <strong>600</strong>. El directorio completo se cierra a otros usuarios
+        con <code>chmod -R o-rwx</code>.
+      </p>
+    </div>
+    <div class="security-card" style="border-color:var(--green);">
+      <h4>🧹 Cleanup Post-Auditoría</h4>
+      <p>
+        El flag <code>--clean</code> elimina toda la evidencia de auditorías
+        anteriores (directorio <code>audits/</code> + logs) con confirmación
+        previa del operador.
+      </p>
+    </div>
+    <div class="security-card" style="border-color:var(--purple);">
+      <h4>⏱️ Timeout Global</h4>
+      <p>
+        Cada herramienta tiene un timeout individual vía <code>timed_run()</code>.
+        Si una herramienta excede el tiempo límite, se mata el proceso y se
+        registra un warning sin detener el pipeline completo.
+      </p>
+    </div>
+    <div class="security-card" style="border-color:var(--teal);">
+      <h4>🕵️ Reportes Seguros (XSS-Free)</h4>
+      <p>
+        Los reportes HTML sanitizan todo el contenido de hallazgos con la función
+        <code>html_escape()</code> que escapa caracteres <code>&amp; &lt; &gt; " '</code>
+        antes de insertarlos en el DOM, previniendo inyección XSS.
       </p>
     </div>
   </div>
@@ -1239,10 +1313,71 @@
 </section>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- CLI REFERENCE                                                           -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-tag">Referencia</div>
+  <h2 class="section-title">CLI &amp; Execution Modes</h2>
+  <p class="section-desc">
+    audit.sh acepta flags que cambian el modo de operación. Sin flags, abre el menú interactivo TUI.
+  </p>
+
+  <div class="security-grid">
+    <div class="security-card" style="border-color:var(--accent);">
+      <h4>📋 <code>--help</code></h4>
+      <p>Ayuda completa con todos los flags disponibles.</p>
+    </div>
+    <div class="security-card" style="border-color:var(--accent);">
+      <h4>📋 <code>--list-tools</code></h4>
+      <p>Lista todas las herramientas registradas en tools.db.</p>
+    </div>
+    <div class="security-card" style="border-color:var(--red);">
+      <h4>🛠️ <code>--install-all</code></h4>
+      <p>Instala todas las herramientas de las 6 fases.</p>
+    </div>
+    <div class="security-card" style="border-color:var(--orange);">
+      <h4>🛠️ <code>--install-phase N</code></h4>
+      <p>Instala una fase específica (1-6).</p>
+    </div>
+    <div class="security-card" style="border-color:var(--yellow);">
+      <h4>🛠️ <code>--install-tool X</code></h4>
+      <p>Instala una herramienta específica por nombre.</p>
+    </div>
+    <div class="security-card" style="border-color:var(--green);">
+      <h4>✅ <code>--verify</code></h4>
+      <p>Verifica qué herramientas están instaladas y sus versiones.</p>
+    </div>
+    <div class="security-card" style="border-color:var(--teal);">
+      <h4>📊 <code>--report</code></h4>
+      <p>Genera reporte de verificación en TXT/JSON/HTML.</p>
+    </div>
+    <div class="security-card" style="border-color:var(--purple);">
+      <h4>🎯 <code>--audit URL</code></h4>
+      <p>Ejecuta el pipeline completo de auditoría automática contra una URL objetivo.</p>
+    </div>
+    <div class="security-card" style="border-color:var(--pink);">
+      <h4>💰 <code>--mode bounty</code></h4>
+      <p>Activa el Módulo 07 — guías de explotación. Clasifica hallazgos en 20+ tipos
+      (IDOR, XSS, SQLi, SSRF, LFI, RCE, SSTI, etc.) y genera árboles de decisión
+      con comandos reales de explotación. Integrado en el reporte HTML.</p>
+    </div>
+    <div class="security-card" style="border-color:var(--orange);">
+      <h4>🕵️ <code>--mode opsec</code></h4>
+      <p>Activa chequeo OPSEC pre-vuelo: verifica VPN activa, DNS leak, IPv6
+      y configuración de Tor antes de permitir el escaneo.</p>
+    </div>
+    <div class="security-card" style="border-color:var(--text-dim);">
+      <h4>📌 <code>--version</code></h4>
+      <p>Muestra la versión actual (v2.1.0).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
 <!-- FOOTER                                                                  -->
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
 <footer>
-  <p>PaginasAudit v2.0.0 — Cyber Security Audit Toolkit</p>
+  <p>PaginasAudit v2.1.0 — Cyber Security Audit Toolkit</p>
   <p style="margin-top:0.3rem;">
     <a href="https://github.com/DavidsmSilva/Auditorias-Paginas" target="_blank" rel="noopener">github.com/DavidsmSilva/Auditorias-Paginas</a>
   </p>
